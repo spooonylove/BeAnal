@@ -27,6 +27,10 @@ class Program
             //Start recording
             capture.StartRecording();
 
+            // -- DIAGNNOSTIC 1: check the audio format -- 
+            Console.WriteLine($"Capture WaveFormat: {capture.WaveFormat}");
+            // -- END DIAGNOSTIC -- 
+
             // Keep the application runing until a key is pressed.
             Console.ReadKey();
 
@@ -43,7 +47,7 @@ class Program
     {
         //The incoming buffer is raw bytes, we need to convert it to samples
         var buffer = new WaveBuffer(e.Buffer);
-
+ 
         //Process samples in pairs (since its stereo, 32-bit float)
         for (int i = 0; i < e.BytesRecorded / 4; i++)
         {
@@ -51,6 +55,14 @@ class Program
             float leftSample = buffer.FloatBuffer[i];
             float rightSample = (i + 1 < buffer.FloatBuffer.Length) ? buffer.FloatBuffer[i + 1] : leftSample;
             float monoSample = (leftSample + rightSample) / 2.0f;
+
+            // -- DIAGNOSTIC 2: Check a raw sample value -- 
+            // We'll print the first sample of each new FFT block
+            if (FFTIndex == 0)
+            {
+                Console.WriteLine($"First mono sample of block: {monoSample:F8}");
+            }
+            // -- END DIAGNOSTIC -- 
 
             //Now, use the mono sample to fill our FFT buffer
             FFTBuffer[FFTIndex].X = (float)(monoSample * FastFourierTransform.HannWindow(FFTIndex, FFTSize));
@@ -69,10 +81,10 @@ class Program
                 // a real visualizer would use them all (up to FFTSize/2)
                 Console.WriteLine(
                     $"Bins: " +
-                    $"[0] {GetMagnitude(FFTBuffer[0]):F2)} | " +
-                    $"[10]: {GetMagnitude(FFTBuffer[10]):F2} |" +
-                    $"[100]: {GetMagnitude(FFTBuffer[100]):F2} |" +
-                    $"[400]: {GetMagnitude(FFTBuffer[400]):F2}"
+                    $"[0]: {GetMagnitude(FFTBuffer[0]):F4} | " +
+                    $"[10]: {GetMagnitude(FFTBuffer[10]):F4} |" +
+                    $"[100]: {GetMagnitude(FFTBuffer[100]):F4} |" +
+                    $"[400]: {GetMagnitude(FFTBuffer[400]):F4}"
                 );
 
             }
