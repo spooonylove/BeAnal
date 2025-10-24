@@ -81,10 +81,10 @@ class Program
                 // a real visualizer would use them all (up to FFTSize/2)
                 Console.WriteLine(
                     $"Bins: " +
-                    $"[0]: {GetMagnitude(FFTBuffer[0]):F4} | " +
-                    $"[10]: {GetMagnitude(FFTBuffer[10]):F4} |" +
-                    $"[100]: {GetMagnitude(FFTBuffer[100]):F4} |" +
-                    $"[400]: {GetMagnitude(FFTBuffer[400]):F4}"
+                    $"[10]: {GetMagnitude(FFTBuffer[0]):F4} | " +
+                    $"[30]: {GetMagnitude(FFTBuffer[30]):F4} |" +
+                    $"[60]: {GetMagnitude(FFTBuffer[60]):F4} |" +
+                    $"[120]: {GetMagnitude(FFTBuffer[120]):F4}"
                 );
 
             }
