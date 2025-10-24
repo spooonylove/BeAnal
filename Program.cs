@@ -89,20 +89,14 @@ class Program
 
     private static double GetMagnitude(Complex c)
     {
-        //Theoretical max magnitude for a 1.0 amplitude sine wave
-        const double theoreticalMax = FFTSize / 2.0;
-
-        //the desired height of the bar for the max signal
-        const double maxVisualHeight = 100.0;
-
-        //Who doesn't like gain? This one goes to 11...
-        const double gain = 150;
+        // a direct multiplier for visual scaling. this is now our sensitivity.
+        // we'll start writh a large value and tune it down if needed.
+        const double multiplier = 8000.0;
+        const double maxHeight = 100.0;
 
         double magnitude = Math.Sqrt(c.X * c.X + c.Y * c.Y);
 
-        double scaledMagnitude = (magnitude / theoreticalMax) * maxVisualHeight;
-
-        return Math.Min(maxVisualHeight, scaledMagnitude * gain);
+        return Math.Min(maxHeight, magnitude * multiplier);
     }
 
 }
