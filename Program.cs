@@ -47,13 +47,14 @@ class Program
         //Process samples in pairs (since its stereo, 32-bit float)
         for (int i = 0; i < e.BytesRecorded / 4; i++)
         {
-            // We only need one channel for the FFT, so we'll avergae them if stereo
-            // or just take the sample if mono. For simplicity, we'l take the first sample
-            float sample = buffer.FloatBuffer[i];
+            //average the left and right channels to get a mono sample
+            float leftSample = buffer.FloatBuffer[i];
+            float rightSample = (i + 1 < buffer.FloatBuffer.Length) ? buffer.FloatBuffer[i + 1] : leftSample;
+            float monoSample = (leftSample + rightSample) / 2.0f;
 
-            //fill out the FFTbuffer
-            FFTBuffer[FFTIndex].X = (float)(sample * FastFourierTransform.HannWindow(FFTIndex, FFTSize));
-            FFTBuffer[FFTIndex].Y = 0; // Imaginary part is 0
+            //Now, use the mono sample to fill our FFT buffer
+            FFTBuffer[FFTIndex].X = (float)(monoSample * FastFourierTransform.HannWindow(FFTIndex, FFTSize));
+            FFTBuffer[FFTIndex].Y = 0;
             FFTIndex++;
 
             //When the FFT Buffre is full, we process it
