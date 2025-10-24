@@ -1,0 +1,7 @@
+# Binaries and build outputs
+[Bb]in/
+[Oo]bj/
+
+# User-specific files
+*.user
+*.suo
