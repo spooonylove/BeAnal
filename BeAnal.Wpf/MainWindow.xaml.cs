@@ -84,7 +84,7 @@ namespace BeAnal.Wpf
                 {
                     Width = barWidth,
                     Height = 0,
-                    Fill = Brushes.LawnGreen
+                    Fill = CreateGradientBrush()
                 };
                 Canvas.SetLeft(rect, i * barWidth);
                 Canvas.SetBottom(rect, 0); // Anchor the bars to the bottom
@@ -129,6 +129,17 @@ namespace BeAnal.Wpf
         {
             // Cleaning shut down the audio engine
             _audioProcessor.Dispose();
+        }
+
+        private Brush CreateGradientBrush()
+        {
+            //define the colors for the gradient.
+            // these could come from a seeting object in the future
+            Color lowColor = Colors.Green;
+            Color highColor = Colors.Red;
+
+            //Create the gradient brush
+            return new LinearGradientBrush(lowColor, highColor, 90);
         }
     }
 }
