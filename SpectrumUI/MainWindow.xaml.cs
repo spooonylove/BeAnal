@@ -28,6 +28,9 @@ namespace SpectrumUI
             // Hook into the window's lifecycle events
             this.Loaded += OnWindowLoaded;
             this.Closing += OnWindowClosing;
+
+            //Making the bordless window dragable
+            this.MouseLeftButtonDown += (s, e) => DragMove();
         }
 
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
