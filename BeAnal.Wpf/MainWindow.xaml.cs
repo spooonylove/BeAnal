@@ -49,12 +49,30 @@ namespace BeAnal.Wpf
             // Determine the frequency of the first FFT bin we care about
             double firstBinFreq = (48000.0 / AudioProcessor.FFTSize);
 
+            // --- Fix: Ensure unique and increasing bin mapping ---
+            int lastBinIndex = 0;
+
             for (int i = 0; i < NumberOfBars; i++)
             {
                 double barNum = i + 1;
                 double octave = (barNum / binsPerOctave) - (1 / binsPerOctave);
                 double freq = minFrequency * Math.Pow(2, octave);
-                _barFFTBinMap[i] = (int)(freq / firstBinFreq);
+
+                int currentBinIndex = (int)(freq / firstBinFreq);
+                // Prevent clumping by ensuring each bar maps to a new bin
+                if (currentBinIndex <= lastBinIndex)
+                {
+                    currentBinIndex = lastBinIndex + 1;
+                }
+
+                // Don't go past the end of the FFT data
+                if (currentBinIndex >= AudioProcessor.FFTSize / 2)
+                {
+                    currentBinIndex = AudioProcessor.FFTSize / 2 - 1;
+                }
+
+                _barFFTBinMap[i] = currentBinIndex;
+                lastBinIndex = currentBinIndex;
             }
 
             // -- Create the visual bars -- 
@@ -112,9 +130,5 @@ namespace BeAnal.Wpf
             // Cleaning shut down the audio engine
             _audioProcessor.Dispose();
         }
-
-
-
-
     }
 }

@@ -18,3 +18,4 @@
     - resizeable bordless window
     - run-time configurable always-on-top
     - mouse hover-over makes the app briefly minimize (so it doesn't interfere with items below)
+    - integration (delay, soft roll off)
