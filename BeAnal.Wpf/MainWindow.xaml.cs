@@ -14,6 +14,7 @@ namespace BeAnal.Wpf
         private readonly AudioProcessor _audioProcessor;
         private readonly Rectangle[] _barRectangles;
         private const int NumberOfBars = 64;
+        private int[] _barFFTBinMap;
 
         public MainWindow()
         {
@@ -36,6 +37,26 @@ namespace BeAnal.Wpf
 
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
+            // --- Calculate logarithmic FFT Bin Mapping ---
+            _barFFTBinMap = new int[NumberOfBars];
+            double maxFrequency = 22050; // Max Frequencty to display (half of 44.1KHz sample rate)
+            double minFrequency = 20;
+
+            // Calculate the number of octaves
+            double octaves = Math.Log(maxFrequency / minFrequency, 2);
+            double binsPerOctave = NumberOfBars / octaves;
+
+            // Determine the frequency of the first FFT bin we care about
+            double firstBinFreq = (48000.0 / AudioProcessor.FFTSize);
+
+            for (int i = 0; i < NumberOfBars; i++)
+            {
+                double barNum = i + 1;
+                double octave = (barNum / binsPerOctave) - (1 / binsPerOctave);
+                double freq = minFrequency * Math.Pow(2, octave);
+                _barFFTBinMap[i] = (int)(freq / firstBinFreq);
+            }
+
             // -- Create the visual bars -- 
             double barWidth = SpectrumCanvas.ActualWidth / NumberOfBars;
 
@@ -67,7 +88,15 @@ namespace BeAnal.Wpf
                 for (int i = 0; i < NumberOfBars; i++)
                 {
                     // Map the FFT datda to the bars
-                    int FFTBinIndex = i * (FFTData.Length / NumberOfBars);
+                    int FFTBinIndex = _barFFTBinMap[i];
+
+                    //Ensure the index is within the bounds of the FFT data array
+                    if (FFTBinIndex >= FFTData.Length)
+                    {
+                        FFTBinIndex = FFTData.Length - 1;
+                    }
+
+
                     double magnitude = FFTData[FFTBinIndex];
 
                     // Scale the height and update the rectangle

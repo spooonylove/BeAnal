@@ -12,7 +12,7 @@ namespace BeAnal.Wpf
         public event Action<double[]>? FFTDataAvailable;
 
          // -- Audio Processing Fields -- 
-        private const int FFTSize = 1024;
+        public const int FFTSize = 1024;
         private int FFTIndex = 0;
         private Complex[] FFTBuffer = new Complex[FFTSize];
         private WasapiLoopbackCapture? capture;
