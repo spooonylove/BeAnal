@@ -15,10 +15,13 @@ namespace BeAnal.Wpf
         private readonly Rectangle[] _barRectangles;
         private const int NumberOfBars = 64;
         private int[] _barFFTBinMap;
+        private readonly Settings _settings;
 
         public MainWindow()
         {
             InitializeComponent();
+
+            _settings = new Settings();
 
             // Hook into the window's lifecycle events
             this.Loaded += OnWindowLoaded;
@@ -28,17 +31,46 @@ namespace BeAnal.Wpf
             this.MouseLeftButtonDown += (s, e) => DragMove();
 
             //Create and prepare the audio engine
-            _audioProcessor = new AudioProcessor();
+            _audioProcessor = new AudioProcessor(_settings.Sensitivity);
             _audioProcessor.FFTDataAvailable += OnFFTDataAvailable;
 
             //Create the Visual Bar objects
-            _barRectangles = new Rectangle[NumberOfBars];
+            _barRectangles = new Rectangle[_settings.NumberOfBars];
+            _barFFTBinMap = new int[_settings.NumberOfBars];
+
+            this.Topmost = _settings.IsTopMost;
         }
 
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
+
+            CalculateLogarithmicMapping();
+            CreateVisualBars();
+            _audioProcessor.Start();
+        }
+
+        private void CreateVisualBars()
+        {
+            double barWidth = SpectrumCanvas.ActualWidth / NumberOfBars;
+
+            for (int i = 0; i < NumberOfBars; i++)
+            {
+                var rect = new Rectangle
+                {
+                    Width = barWidth,
+                    Height = 0,
+                    Fill = CreateGradientBrush()
+                };
+                Canvas.SetLeft(rect, i * barWidth);
+                Canvas.SetBottom(rect, 0); // Anchor the bars to the bottom
+                _barRectangles[i] = rect;
+                SpectrumCanvas.Children.Add(rect);
+            }
+        }
+
+        private void CalculateLogarithmicMapping()
+        {
             // --- Calculate logarithmic FFT Bin Mapping ---
-            _barFFTBinMap = new int[NumberOfBars];
             double maxFrequency = 22050; // Max Frequencty to display (half of 44.1KHz sample rate)
             double minFrequency = 20;
 
@@ -74,29 +106,8 @@ namespace BeAnal.Wpf
                 _barFFTBinMap[i] = currentBinIndex;
                 lastBinIndex = currentBinIndex;
             }
-
-            // -- Create the visual bars -- 
-            double barWidth = SpectrumCanvas.ActualWidth / NumberOfBars;
-
-            for (int i = 0; i < NumberOfBars; i++)
-            {
-                var rect = new Rectangle
-                {
-                    Width = barWidth,
-                    Height = 0,
-                    Fill = CreateGradientBrush()
-                };
-                Canvas.SetLeft(rect, i * barWidth);
-                Canvas.SetBottom(rect, 0); // Anchor the bars to the bottom
-                _barRectangles[i] = rect;
-                SpectrumCanvas.Children.Add(rect);
-            }
-            // -- End of Bar Creation -- 
-
-            // Start audio capture when the window is loaded
-            _audioProcessor.Start();
         }
-
+        
         // This method is called by the AudioProcessor's event
         private void OnFFTDataAvailable(double[] FFTData)
         {
@@ -140,6 +151,17 @@ namespace BeAnal.Wpf
 
             //Create the gradient brush
             return new LinearGradientBrush(lowColor, highColor, 90);
+        }
+
+        private void Settings_Click(object sender, RoutedEventArgs e)
+        {
+            SettingsWindow settingsWindow = new SettingsWindow();
+            settingsWindow.Show(); // Show() opens a non-blocking window
+        }
+
+        private void Exit_Click(object sender, RoutedEventArgs e)
+        {
+            Application.Current.Shutdown();
         }
     }
 }
