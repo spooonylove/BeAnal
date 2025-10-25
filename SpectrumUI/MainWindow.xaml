@@ -5,12 +5,6 @@
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:SpectrumUI"
         mc:Ignorable="d"
-        Title="MainWindow" Height="450" Width="800">
-    <Grid>
-        <TextBlock x:Name="OutputText"
-                FontSize="16"
-                HorizontalAlignment="Center"
-                VerticalAlignment="Center"/>
-
-    </Grid>
+        Title="BeAnal" Height="450" Width="800">
+    <Canvas x:Name="SpectrumCanvas" Background="Black" />
 </Window>
