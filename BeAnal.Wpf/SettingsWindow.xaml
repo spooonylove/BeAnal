@@ -40,8 +40,8 @@
 
         <Slider x:Name="SensitivitySlider" 
                 Grid.Row="1" Grid.Column="1"
-                Minimum="1000" Maximum="20000" 
-                TickFrequency="500" IsSnapToTickEnabled="True"
+                Minimum="0.1" Maximum="20" 
+                TickFrequency="0.1" IsSnapToTickEnabled="True"
                 ValueChanged="SensitivitySlider_ValueChanged"
                 VerticalAlignment="Center" Margin="0,10,0,0"/>
         

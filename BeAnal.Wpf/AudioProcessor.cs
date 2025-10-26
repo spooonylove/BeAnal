@@ -77,7 +77,7 @@ namespace BeAnal.Wpf
                 //Calculate magnitudfes for all useful bins and store them
                 for (int i = 0; i < FFTSize / 2; i++)
                 {
-                    _lastFFTMagnitudes[i] = GetMagnitude(_FFTBuffer[i]);
+                    _lastFFTMagnitudes[i] = GetMagnitudedB(_FFTBuffer[i]);
                 }
 
                 //Raise the event, sending a copy of the FFT data to any listeners
@@ -107,6 +107,30 @@ namespace BeAnal.Wpf
             _capture?.Dispose();
 
             _capture = null;
+        }
+
+        private double GetMagnitudedB(Complex c)
+        {
+            const double maxHeight = 100.0;
+            const double mindB = -60.0; //The "silence" threshold
+            const double maxdB = 0.0; // The "max volume" threshold
+
+            // 1. Calculate the raw lineaer magnitude
+            double linearMagnitude = Math.Sqrt(c.X * c.X + c.Y * c.Y);
+
+            // Prevent math error with log(0)
+            if (linearMagnitude <= 0) return 0;
+
+            // 2. Convert the linear magnitude to decibles
+            // we use a reference value (_multiplier) to scale the input
+            double dB = 20 * Math.Log10(linearMagnitude * _multiplier);
+
+            // 3. Scale the dB value to our visual height (0-100)
+            // this maps the range [-60dB, 0dB] to [0,100]
+            double scaledMagnitude = ((dB - mindB) / (maxdB - mindB)) * maxHeight;
+
+            // 4. Clamp the value to ensure its withtin the 0-100 range
+            return Math.Max(0, Math.Min(maxHeight, scaledMagnitude));
         }
     }
 }
