@@ -3,12 +3,35 @@
         xmlns:x="http://schemas.microsoft.com/winfx/2006/xaml"
         Title="Settings" Height="300" Width="400"
         WindowStartupLocation="CenterOwner">
-    <Grid Margin="10">
-        <StackPanel>
-                <Label Content="Number of Bars"/>
-                <Slider x:Name="BarSlider" Minimum="16" Maximum="256"
-                        TickFrequency="16" IsSnapToTickEnabled="True"
-                        ValueChanged="BarSlider_ValueChanged"/>
-        </StackPanel>
+    <Grid Margin="15">
+        <Grid.RowDefinitions>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="Auto"/>
+            <RowDefinition Height="*"/>
+        </Grid.RowDefinitions>
+        <Grid.ColumnDefinitions>
+            <ColumnDefinition Width="Auto"/>
+            <ColumnDefinition Width="*"/>
+            <ColumnDefinition Width="Auto"/>
+        </Grid.ColumnDefinitions>
+
+        <Label Content="Number of Bars:" 
+               Grid.Row="0" Grid.Column="0" 
+               VerticalAlignment="Center" HorizontalAlignment="Right"
+               Margin="0,0,10,0"/>
+
+        <Slider x:Name="BarsSlider" 
+                Grid.Row="0" Grid.Column="1"
+                Minimum="16" Maximum="256" 
+                TickFrequency="16" IsSnapToTickEnabled="True"
+                ValueChanged="BarsSlider_ValueChanged"
+                VerticalAlignment="Center"/>
+        
+        <TextBlock x:Name="BarsValueText" 
+                   Grid.Row="0" Grid.Column="2"
+                   Text="64" MinWidth="30"
+                   Margin="10,0,0,0"
+                   VerticalAlignment="Center" HorizontalAlignment="Right"/>
+
     </Grid>
 </Window>

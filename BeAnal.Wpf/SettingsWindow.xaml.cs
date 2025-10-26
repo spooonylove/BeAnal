@@ -24,18 +24,25 @@ namespace BeAnal.Wpf
         
         private void OnSettingsWindowLoaded(object sender, RoutedEventArgs e)
         {
-            //MessageBox.Show("3. Window Loaded"); // <-- LED #3
             // Set the slider's initial value here, AFTER the window is fully loaded
             // and after MainWindow has subscribed to our event.
-            BarSlider.Value = _settings.NumberOfBars;
+            BarsSlider.Value = _settings.NumberOfBars;
+
+            //Set the initial text value
+            BarsValueText.Text = _settings.NumberOfBars.ToString();
         }
-        private void BarSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        private void BarsSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
             // this check prevents the event from firing during initialization
             if (!this.IsLoaded) return;
 
+            int newValue = (int)e.NewValue;
+
             // Update the shared settings object
-            _settings.NumberOfBars = (int)e.NewValue;
+            _settings.NumberOfBars = newValue;
+
+            //Update the text block with the new value
+            BarsValueText.Text = newValue.ToString();
             // Raise the event to notify MainWindow
             SettingsChanged?.Invoke();
         }
