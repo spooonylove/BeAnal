@@ -154,8 +154,14 @@ namespace BeAnal.Wpf
 
         private void OnSettingsChanged()
         {
-            //When settings change, we need to rebuild the visualizer
-            ReinitializeVisualizer();
+            // This is a cheap operation, lets do it each time
+            _audioProcessor.Sensitivity = _settings.Sensitivity;
+
+            // THis is an expensive operation, so we only do it if the bar count has changed
+            if (_barRectangles.Length != _settings.NumberOfBars)
+            {
+                ReinitializeVisualizer();
+            }
         }
 
         private void ReinitializeVisualizer()

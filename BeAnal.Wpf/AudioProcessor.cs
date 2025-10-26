@@ -17,7 +17,13 @@ namespace BeAnal.Wpf
         private Complex[] _FFTBuffer = new Complex[FFTSize];
         private WasapiLoopbackCapture? _capture;
         private double[]? _lastFFTMagnitudes;
-        private readonly double _multiplier;
+        private double _multiplier;
+        // Publicly accessible Sensitivity setting, to scale the output accordingly
+        public double Sensitivity
+        {
+            get => _multiplier;
+            set => _multiplier = value;
+        }
 
         public AudioProcessor(double multiplier)
         {

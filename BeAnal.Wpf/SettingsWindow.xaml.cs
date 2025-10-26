@@ -30,6 +30,10 @@ namespace BeAnal.Wpf
 
             //Set the initial text value
             BarsValueText.Text = _settings.NumberOfBars.ToString();
+
+            //Set up Sensitivity Sliders, yo
+            SensitivitySlider.Value = _settings.Sensitivity;
+            SensitivityValueText.Text = _settings.Sensitivity.ToString("F0");
         }
         private void BarsSlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
         {
@@ -44,6 +48,17 @@ namespace BeAnal.Wpf
             //Update the text block with the new value
             BarsValueText.Text = newValue.ToString();
             // Raise the event to notify MainWindow
+            SettingsChanged?.Invoke();
+        }
+
+        private void SensitivitySlider_ValueChanged(object sender, RoutedPropertyChangedEventArgs<double> e)
+        {
+            if (!this.IsLoaded) return;
+
+            double newValue = e.NewValue;
+            _settings.Sensitivity = newValue;
+            SensitivityValueText.Text = newValue.ToString("F0");
+
             SettingsChanged?.Invoke();
         }
     }
