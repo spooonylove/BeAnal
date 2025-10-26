@@ -12,8 +12,7 @@ namespace BeAnal.Wpf
 
         // --  Fields --
         private readonly AudioProcessor _audioProcessor;
-        private readonly Rectangle[] _barRectangles;
-        private const int NumberOfBars = 64;
+        private Rectangle[] _barRectangles;
         private int[] _barFFTBinMap;
         private readonly Settings _settings;
 
@@ -51,9 +50,9 @@ namespace BeAnal.Wpf
 
         private void CreateVisualBars()
         {
-            double barWidth = SpectrumCanvas.ActualWidth / NumberOfBars;
+            double barWidth = SpectrumCanvas.ActualWidth / _settings.NumberOfBars;
 
-            for (int i = 0; i < NumberOfBars; i++)
+            for (int i = 0; i < _settings.NumberOfBars; i++)
             {
                 var rect = new Rectangle
                 {
@@ -76,7 +75,7 @@ namespace BeAnal.Wpf
 
             // Calculate the number of octaves
             double octaves = Math.Log(maxFrequency / minFrequency, 2);
-            double binsPerOctave = NumberOfBars / octaves;
+            double binsPerOctave = _settings.NumberOfBars / octaves;
 
             // Determine the frequency of the first FFT bin we care about
             double firstBinFreq = (48000.0 / AudioProcessor.FFTSize);
@@ -84,7 +83,7 @@ namespace BeAnal.Wpf
             // --- Fix: Ensure unique and increasing bin mapping ---
             int lastBinIndex = 0;
 
-            for (int i = 0; i < NumberOfBars; i++)
+            for (int i = 0; i < _settings.NumberOfBars; i++)
             {
                 double barNum = i + 1;
                 double octave = (barNum / binsPerOctave) - (1 / binsPerOctave);
@@ -107,14 +106,14 @@ namespace BeAnal.Wpf
                 lastBinIndex = currentBinIndex;
             }
         }
-        
+
         // This method is called by the AudioProcessor's event
         private void OnFFTDataAvailable(double[] FFTData)
         {
             //Use the dispatcher to update the UI from the audio thread
             Dispatcher.BeginInvoke(() =>
             {
-                for (int i = 0; i < NumberOfBars; i++)
+                for (int i = 0; i < _settings.NumberOfBars; i++)
                 {
                     // Map the FFT datda to the bars
                     int FFTBinIndex = _barFFTBinMap[i];
@@ -153,15 +152,41 @@ namespace BeAnal.Wpf
             return new LinearGradientBrush(lowColor, highColor, 90);
         }
 
+        private void OnSettingsChanged()
+        {
+            //When settings change, we need to rebuild the visualizer
+            ReinitializeVisualizer();
+        }
+
+        private void ReinitializeVisualizer()
+        {
+            // 1. Clear the old bars from the canvas
+            SpectrumCanvas.Children.Clear();
+
+            // 2. Resize our arrays to match the new settings
+            Array.Resize(ref _barRectangles, _settings.NumberOfBars);
+            Array.Resize(ref _barFFTBinMap, _settings.NumberOfBars);
+
+            // 3. Re-run the setup logic with the new settings
+            CalculateLogarithmicMapping();
+            CreateVisualBars();
+        }
         private void Settings_Click(object sender, RoutedEventArgs e)
         {
-            SettingsWindow settingsWindow = new SettingsWindow();
-            settingsWindow.Show(); // Show() opens a non-blocking window
+            Dispatcher.BeginInvoke(new Action(() =>
+            {
+                var settingsWindow = new SettingsWindow(_settings);
+                settingsWindow.SettingsChanged += OnSettingsChanged;
+
+                settingsWindow.Owner = this;
+                settingsWindow.ShowDialog();
+            }));
         }
 
         private void Exit_Click(object sender, RoutedEventArgs e)
         {
             Application.Current.Shutdown();
         }
+
     }
 }
