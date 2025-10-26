@@ -13,6 +13,7 @@ namespace BeAnal.Wpf
         // --  Fields --
         private readonly AudioProcessor _audioProcessor;
         private Rectangle[] _barRectangles;
+        private double[] _lastBarHeights;
         private int[] _barFFTBinMap;
         private readonly Settings _settings;
 
@@ -36,6 +37,7 @@ namespace BeAnal.Wpf
             //Create the Visual Bar objects
             _barRectangles = new Rectangle[_settings.NumberOfBars];
             _barFFTBinMap = new int[_settings.NumberOfBars];
+            _lastBarHeights = new double[_settings.NumberOfBars];
 
             this.Topmost = _settings.IsTopMost;
         }
@@ -110,26 +112,43 @@ namespace BeAnal.Wpf
         // This method is called by the AudioProcessor's event
         private void OnFFTDataAvailable(double[] FFTData)
         {
+            
+
             //Use the dispatcher to update the UI from the audio thread
             Dispatcher.BeginInvoke(() =>
             {
+                // Attack Release settings for smoothing function
+                double attack = 0.4;
+                double release = 0.1;
+
                 for (int i = 0; i < _settings.NumberOfBars; i++)
                 {
-                    // Map the FFT datda to the bars
                     int FFTBinIndex = _barFFTBinMap[i];
+                    if (FFTBinIndex >= FFTData.Length) FFTBinIndex = FFTData.Length - 1;
 
-                    //Ensure the index is within the bounds of the FFT data array
-                    if (FFTBinIndex >= FFTData.Length)
+                    // 1. Get the new, "raw" target height from the FFT data
+                    double rawMagnitude = FFTData[FFTBinIndex];
+                    double targetHeight = (rawMagnitude / 100) * SpectrumCanvas.ActualHeight;
+
+                    // 2. Gte the bar's previous height
+                    double lastHeight = _lastBarHeights[i];
+
+                    // 3. Apply the smothing filter
+                    double newHeight;
+                    if (targetHeight > lastHeight)
                     {
-                        FFTBinIndex = FFTData.Length - 1;
+                        // Attack: bar is rising, move quickly (classically, users choice!)
+                        newHeight = (targetHeight * attack) + (lastHeight * (1 - attack));
+                    }
+                    else
+                    {
+                        // Release: bar is falling, move slowly for graceful decay
+                        newHeight = (targetHeight * release) + (lastHeight * (1 - release));
                     }
 
-
-                    double magnitude = FFTData[FFTBinIndex];
-
-                    // Scale the height and update the rectangle
-                    double barHeight = (magnitude / 100.0) * SpectrumCanvas.ActualHeight;
-                    _barRectangles[i].Height = Math.Min(barHeight, SpectrumCanvas.ActualHeight);
+                    // 4. Update the bar and store the new height for the next frame
+                    _barRectangles[i].Height = Math.Min(newHeight, SpectrumCanvas.ActualHeight);
+                    _lastBarHeights[i] = newHeight;
                 }
 
             });
@@ -172,6 +191,7 @@ namespace BeAnal.Wpf
             // 2. Resize our arrays to match the new settings
             Array.Resize(ref _barRectangles, _settings.NumberOfBars);
             Array.Resize(ref _barFFTBinMap, _settings.NumberOfBars);
+            Array.Resize(ref _lastBarHeights, _settings.NumberOfBars);
 
             // 3. Re-run the setup logic with the new settings
             CalculateLogarithmicMapping();
