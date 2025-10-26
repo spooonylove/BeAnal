@@ -22,8 +22,8 @@
 
         <Slider x:Name="BarsSlider" 
                 Grid.Row="0" Grid.Column="1"
-                Minimum="16" Maximum="256" 
-                TickFrequency="16" IsSnapToTickEnabled="True"
+                Minimum="10" Maximum="512" 
+                TickFrequency="2" IsSnapToTickEnabled="True"
                 ValueChanged="BarsSlider_ValueChanged"
                 VerticalAlignment="Center"/>
         
