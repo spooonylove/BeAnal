@@ -3,6 +3,7 @@ using System.Windows;           // Required for WPF classes like windows
 using System.Windows.Shapes;    //Required for Rectangle
 using System.Windows.Media;     // Required for Brushes
 using System.Windows.Controls;
+using System.Formats.Asn1;
 
 
 namespace BeAnal.Wpf
@@ -84,33 +85,70 @@ namespace BeAnal.Wpf
         {
             //Redefine the map with the new type
             _barFFTBinMap = new (int Start, int End)[_settings.NumberOfBars];
-
-            double maxFrequency = 20000; //Capped at a realistic 20KHz
-            double minFrequency = 20;
             int maxFFTIndex = AudioProcessor.FFTSize / 2 - 1;
-            double freqResolution = 48000 / AudioProcessor.FFTSize;
 
-            for (int i=0; i < _settings.NumberOfBars; i++)
+            // Define the frequency resolution once and give it a clear name.
+            double frequencyResolution = 48000.0 / AudioProcessor.FFTSize;
+            
+            
+            // --- Lin-Log Hybrid Calculation ---
+
+            // 1. Define the "cross-over" point: how many bars are linear
+            const double linearRatio = 0.4;  //40% of bars will be linear
+            int lineareBarCount = (int)(_settings.NumberOfBars * linearRatio);
+
+            // 2. Calculate the linear point
+            int lastLinearBin = 0;
+
+            for (int i = 0; i < lineareBarCount; i++)
             {
-                //Calculate the start and end frequencies for this bar on a log scale
-                double freqStart = minFrequency * Math.Pow(maxFrequency / minFrequency, (double)i / _settings.NumberOfBars);
-                double freqEnd = minFrequency * Math.Pow(maxFrequency / minFrequency, (double)(i + 1) / _settings.NumberOfBars);
-
-                //Convert those frequencies to FFT bin indices
-                int binStartIndex = (int)(freqStart / freqResolution);
-                int binEndIndex = (int)(freqEnd / freqResolution);
-
-                // Clamp the values to the valid range
-                if (binStartIndex > maxFFTIndex) binStartIndex = maxFFTIndex;
-                if (binEndIndex > maxFFTIndex) binEndIndex = maxFFTIndex;
-
-                // Ensure we are always looking at least one bin
-                if (binEndIndex <= binStartIndex) binEndIndex = binStartIndex + 1;
-                if (binEndIndex > maxFFTIndex) binEndIndex = maxFFTIndex;
-
-                _barFFTBinMap[i] = (binStartIndex, binEndIndex);
+                // Simple one-to-one mapping for the bass
+                _barFFTBinMap[i] = (i + 1, i + 2);
+                lastLinearBin = i + 2;
             }
-           
+
+            // 3. Calculate the logarithmic part for the remaining bars
+            if (_settings.NumberOfBars > lineareBarCount)
+            {
+                int logBarCount = _settings.NumberOfBars - lineareBarCount;
+
+                // The log scale starts where the linear scale's last bin left off
+                double minLogFreq = (lastLinearBin) * frequencyResolution;
+                double maxLogFreq = 20000;
+
+                for (int i = 0; i < logBarCount; i++)
+                {
+                    double freqStart = minLogFreq * Math.Pow(maxLogFreq / minLogFreq, (double)i / logBarCount);
+                    double freqEnd = minLogFreq * Math.Pow(maxLogFreq / minLogFreq, (double)(i + 1) / logBarCount);
+
+                    int binStartIndex = (int)(freqStart / frequencyResolution);
+                    int binEndIndex = (int)(freqEnd / frequencyResolution);
+
+                    // Safety Checks
+                    if (binStartIndex > maxFFTIndex) binStartIndex = maxFFTIndex;
+                    if (binEndIndex > maxFFTIndex) binEndIndex = maxFFTIndex;
+                    if (binEndIndex <= binStartIndex) binEndIndex = binStartIndex + 1;
+                    if (binEndIndex > maxFFTIndex) binEndIndex = maxFFTIndex;
+
+                    _barFFTBinMap[i + lineareBarCount] = (binStartIndex, binEndIndex);
+                }
+            }
+            #if DEBUG
+                Console.WriteLine("--- Lin-Log Hybrid Mapping ---");
+                
+                for (int i = 0; i < _settings.NumberOfBars; i++)
+                {
+                    var (startBin, endBin) = _barFFTBinMap[i];
+                    double startFreq = startBin * frequencyResolution;
+                    double endFreq = endBin * frequencyResolution;
+                    
+                    Console.WriteLine($"Bar {i,3}: Bins {startBin,3}-{endBin,3} (~{startFreq,5:F0} - {endFreq,5:F0} Hz)");
+                }
+                Console.WriteLine("--- End of Mapping ---");
+            #endif
+
+            
+    
         }
 
         // This method is called by the AudioProcessor's event
