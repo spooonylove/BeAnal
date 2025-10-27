@@ -14,8 +14,10 @@ namespace BeAnal.Wpf
         private readonly AudioProcessor _audioProcessor;
         private Rectangle[] _barRectangles;
         private double[] _lastBarHeights;
-        private int[] _barFFTBinMap;
+        private (int Start, int End)[] _barFFTBinMap;
         private readonly Settings _settings;
+        private bool _isWindowLoaded = false;
+
 
         public MainWindow()
         {
@@ -30,13 +32,16 @@ namespace BeAnal.Wpf
             //Making the bordless window dragable
             this.MouseLeftButtonDown += (s, e) => DragMove();
 
+            //Refresh the visualization when resized
+            this.SizeChanged += OnWindowSizeChanged;
+
             //Create and prepare the audio engine
             _audioProcessor = new AudioProcessor(_settings.Sensitivity);
             _audioProcessor.FFTDataAvailable += OnFFTDataAvailable;
 
             //Create the Visual Bar objects
             _barRectangles = new Rectangle[_settings.NumberOfBars];
-            _barFFTBinMap = new int[_settings.NumberOfBars];
+            _barFFTBinMap = new (int Start, int End)[_settings.NumberOfBars];
             _lastBarHeights = new double[_settings.NumberOfBars];
 
             this.Topmost = _settings.IsTopMost;
@@ -48,65 +53,64 @@ namespace BeAnal.Wpf
             CalculateLogarithmicMapping();
             CreateVisualBars();
             _audioProcessor.Start();
+
+            _isWindowLoaded = true;
         }
 
         private void CreateVisualBars()
         {
-            double barWidth = SpectrumCanvas.ActualWidth / _settings.NumberOfBars;
-
             for (int i = 0; i < _settings.NumberOfBars; i++)
             {
                 var rect = new Rectangle
                 {
-                    Width = barWidth,
                     Height = 0,
                     Fill = CreateGradientBrush()
                 };
-                Canvas.SetLeft(rect, i * barWidth);
                 Canvas.SetBottom(rect, 0); // Anchor the bars to the bottom
                 _barRectangles[i] = rect;
                 SpectrumCanvas.Children.Add(rect);
+            }
+
+            UpdateBarLayout();
+
+            // --- DIAGNOSTIC: Color the last bar blue ---
+            if (_barRectangles.Length > 0)
+            {
+                _barRectangles[_settings.NumberOfBars - 1].Fill = Brushes.Blue;
             }
         }
 
         private void CalculateLogarithmicMapping()
         {
-            // --- Calculate logarithmic FFT Bin Mapping ---
-            double maxFrequency = 22050; // Max Frequencty to display (half of 44.1KHz sample rate)
+            //Redefine the map with the new type
+            _barFFTBinMap = new (int Start, int End)[_settings.NumberOfBars];
+
+            double maxFrequency = 20000; //Capped at a realistic 20KHz
             double minFrequency = 20;
+            int maxFFTIndex = AudioProcessor.FFTSize / 2 - 1;
+            double freqResolution = 48000 / AudioProcessor.FFTSize;
 
-            // Calculate the number of octaves
-            double octaves = Math.Log(maxFrequency / minFrequency, 2);
-            double binsPerOctave = _settings.NumberOfBars / octaves;
-
-            // Determine the frequency of the first FFT bin we care about
-            double firstBinFreq = (48000.0 / AudioProcessor.FFTSize);
-
-            // --- Fix: Ensure unique and increasing bin mapping ---
-            int lastBinIndex = 0;
-
-            for (int i = 0; i < _settings.NumberOfBars; i++)
+            for (int i=0; i < _settings.NumberOfBars; i++)
             {
-                double barNum = i + 1;
-                double octave = (barNum / binsPerOctave) - (1 / binsPerOctave);
-                double freq = minFrequency * Math.Pow(2, octave);
+                //Calculate the start and end frequencies for this bar on a log scale
+                double freqStart = minFrequency * Math.Pow(maxFrequency / minFrequency, (double)i / _settings.NumberOfBars);
+                double freqEnd = minFrequency * Math.Pow(maxFrequency / minFrequency, (double)(i + 1) / _settings.NumberOfBars);
 
-                int currentBinIndex = (int)(freq / firstBinFreq);
-                // Prevent clumping by ensuring each bar maps to a new bin
-                if (currentBinIndex <= lastBinIndex)
-                {
-                    currentBinIndex = lastBinIndex + 1;
-                }
+                //Convert those frequencies to FFT bin indices
+                int binStartIndex = (int)(freqStart / freqResolution);
+                int binEndIndex = (int)(freqEnd / freqResolution);
 
-                // Don't go past the end of the FFT data
-                if (currentBinIndex >= AudioProcessor.FFTSize / 2)
-                {
-                    currentBinIndex = AudioProcessor.FFTSize / 2 - 1;
-                }
+                // Clamp the values to the valid range
+                if (binStartIndex > maxFFTIndex) binStartIndex = maxFFTIndex;
+                if (binEndIndex > maxFFTIndex) binEndIndex = maxFFTIndex;
 
-                _barFFTBinMap[i] = currentBinIndex;
-                lastBinIndex = currentBinIndex;
+                // Ensure we are always looking at least one bin
+                if (binEndIndex <= binStartIndex) binEndIndex = binStartIndex + 1;
+                if (binEndIndex > maxFFTIndex) binEndIndex = maxFFTIndex;
+
+                _barFFTBinMap[i] = (binStartIndex, binEndIndex);
             }
+           
         }
 
         // This method is called by the AudioProcessor's event
@@ -123,30 +127,35 @@ namespace BeAnal.Wpf
 
                 for (int i = 0; i < _settings.NumberOfBars; i++)
                 {
-                    int FFTBinIndex = _barFFTBinMap[i];
-                    if (FFTBinIndex >= FFTData.Length) FFTBinIndex = FFTData.Length - 1;
+                    // 1. Get the start and end bins for this bar from our map
+                    var (startBin, endBin) = _barFFTBinMap[i];
 
-                    // 1. Get the new, "raw" target height from the FFT data
-                    double rawMagnitude = FFTData[FFTBinIndex];
-                    double targetHeight = (rawMagnitude / 100) * SpectrumCanvas.ActualHeight;
+                    // 2. Find the peak magnitude within that range of bins
+                    double peakMagnitude = 0;
 
-                    // 2. Gte the bar's previous height
+                    for (int j = startBin; j < endBin; j++)
+                    {
+                        if (j < FFTData.Length && FFTData[j] > peakMagnitude)
+                        {
+                            peakMagnitude = FFTData[j];
+                        }
+                    }
+
+                    // 3. Use that peak fro the smoothing and drawing logic
+                    double targetHeight = (peakMagnitude / 100.0) * SpectrumCanvas.ActualHeight;
+
+                    //Smothing functions, yo!
                     double lastHeight = _lastBarHeights[i];
-
-                    // 3. Apply the smothing filter
                     double newHeight;
                     if (targetHeight > lastHeight)
                     {
-                        // Attack: bar is rising, move quickly (classically, users choice!)
                         newHeight = (targetHeight * attack) + (lastHeight * (1 - attack));
                     }
                     else
                     {
-                        // Release: bar is falling, move slowly for graceful decay
                         newHeight = (targetHeight * release) + (lastHeight * (1 - release));
                     }
 
-                    // 4. Update the bar and store the new height for the next frame
                     _barRectangles[i].Height = Math.Min(newHeight, SpectrumCanvas.ActualHeight);
                     _lastBarHeights[i] = newHeight;
                 }
@@ -213,6 +222,33 @@ namespace BeAnal.Wpf
         {
             Application.Current.Shutdown();
         }
+
+
+        private void UpdateBarLayout()
+        {
+            // This method is the single source of truth for bar layout
+            // don't do anything if the bars haven't been created yet
+            if (_barRectangles is null || _barRectangles.Length == 0 || _barRectangles[0] is null || SpectrumCanvas.ActualWidth == 0)
+            {
+                return;
+            }
+
+            double barwidth = SpectrumCanvas.ActualWidth / _settings.NumberOfBars;
+
+            for (int i = 0; i < _settings.NumberOfBars; i++)
+            {
+                _barRectangles[i].Width = barwidth;
+                Canvas.SetLeft(_barRectangles[i], i * barwidth);
+            }
+        }
+
+        private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            if (!_isWindowLoaded) return;
+            
+            UpdateBarLayout();
+        }
+        
 
     }
 }

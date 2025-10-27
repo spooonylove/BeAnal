@@ -1,0 +1,16 @@
+{
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "name": "Launch WPF App",
+            "type": "coreclr",
+            "request": "launch",
+            "preLaunchTask": "build",
+            "program": "${workspaceFolder}/BeAnal.Wpf/bin/Debug/net10.0-windows/BeAnal.Wpf.dll",
+            "args": [],
+            "cwd": "${workspaceFolder}/BeAnal.Wpf",
+            "stopAtEntry": false,
+            "console": "internalConsole"
+        }
+    ]
+}

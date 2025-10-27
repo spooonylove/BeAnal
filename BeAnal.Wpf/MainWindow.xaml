@@ -8,13 +8,21 @@
         Title="BeAnal" Height="450" Width="800"
         WindowStyle="None"
         AllowsTransparency="True"
-        Background="Transparent">
-    <Canvas x:Name="SpectrumCanvas" Background="Black">
-    <Canvas.ContextMenu>
-        <ContextMenu>
-            <MenuItem Header="Settings..." Click="Settings_Click"/>
-            <MenuItem Header="Exit" Click="Exit_Click"/>
-        </ContextMenu>
-    </Canvas.ContextMenu>
-</Canvas>
+        Background="Transparent"
+        ResizeMode="CanResizeWithGrip">
+    <Grid>
+        <Canvas x:Name="SpectrumCanvas" Background="Black">
+            <Canvas.ContextMenu>
+                <ContextMenu>
+                    <MenuItem Header="Settings..." Click="Settings_Click"/>
+                    <MenuItem Header="Exit" Click="Exit_Click"/>
+                </ContextMenu>
+            </Canvas.ContextMenu>
+        </Canvas>
+
+        <ResizeGrip HorizontalAlignment="Right" 
+                    VerticalAlignment="Bottom" 
+                    Cursor="SizeNWSE" 
+                    Foreground="Gray"/>
+    </Grid>
 </Window>

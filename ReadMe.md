@@ -21,3 +21,4 @@
 - [ ] mouse hover-over makes the app briefly minimize (so it doesn't interfere with items below)
 - [ ] integration (delay, soft roll off)
 - [ ] Peak detection integration and variable roll-off
+
