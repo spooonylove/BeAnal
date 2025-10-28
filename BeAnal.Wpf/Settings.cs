@@ -8,6 +8,6 @@ namespace BeAnal.Wpf
         public double Sensitivity { get; set; } = 5.0;
         public Color LowColor { get; set; } = Colors.Green;
         public Color HighColor { get; set; } = Colors.Red;
-        public bool IsTopMost { get; set; } = true;
+        public bool IsAlwaysOnTop { get; set; } = true;
     }
 }
