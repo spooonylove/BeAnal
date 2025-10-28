@@ -16,6 +16,7 @@ namespace BeAnal.Wpf
         private readonly Settings _settings;
         private readonly AudioProcessor _audioProcessor;
         private Rectangle[] _barRectangles;
+        private Rectangle[] _peakRectangles;
         
         public MainWindow()
         {
@@ -25,7 +26,6 @@ namespace BeAnal.Wpf
             // Create and prepare the audio engine
             _audioProcessor = new AudioProcessor(_settings);
             
-
             // Hook into events
             _settings.PropertyChanged += OnSettingsChanged;
             _audioProcessor.ProcessedDataAvailable += OnProcessedDataAvailable;
@@ -35,6 +35,11 @@ namespace BeAnal.Wpf
 
             // Making the bordless window dragable
             this.MouseLeftButtonDown += (s, e) => DragMove();
+
+            // Initialize the rectangle arrays to empty to satisfy non-nullable rqeuirement.
+            // The will be populated later in the 'Loaded' event.
+            _barRectangles = Array.Empty<Rectangle>();
+            _peakRectangles = Array.Empty<Rectangle>();
         }
 
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
@@ -64,6 +69,7 @@ namespace BeAnal.Wpf
                     case nameof(Settings.NumberOfBars):
                     case nameof(Settings.LowColor):
                     case nameof(Settings.HighColor):
+                    case nameof(Settings.PeakColor):
                         // This is an expensive operation, so only do it when you need to!
                         UpdateVisualizerLayout();
                         break;
@@ -80,18 +86,24 @@ namespace BeAnal.Wpf
             // This is to safe call even during initiatization because of the null checks within
             UpdateBarPositionsAndWidths();
         }
-        private void OnProcessedDataAvailable(double[] barHeights)
+        private void OnProcessedDataAvailable(VisualizerData data)
         {
             Dispatcher.BeginInvoke(() =>
             {
                 // Safety check: if settings changed and the bar array is out of sync, abort the frame
-                if (_barRectangles.Length != barHeights.Length) return;
+                if (_barRectangles.Length !=data.BarHeights.Length) return;
 
-                for (int i = 0; i < barHeights.Length; i++)
+                for (int i = 0; i < data.BarHeights.Length; i++)
                 {
-                    // Appply the final, pre-calculated height. no Math! FAST
-                    double finalHeight = (barHeights[i] / 100.0) * SpectrumCanvas.ActualHeight;
-                    _barRectangles[i].Height = finalHeight;
+                    // Appply the final, pre-calculated bar height. no Math! FAST
+                    double barHeight = (data.BarHeights[i] / 100.0) * SpectrumCanvas.ActualHeight;
+                    _barRectangles[i].Height = Math.Max(0, barHeight);
+
+                    double peakPosition = (data.PeakLevels[i] / 100.0) * SpectrumCanvas.ActualHeight;
+                    // Ensure that the peak indicator is at least its own height from the top
+                    double finalPeakPosition = Math.Max(0, peakPosition - _peakRectangles[i].Height);
+                    Canvas.SetBottom(_peakRectangles[i], finalPeakPosition);
+
                 }
             });
         }
@@ -101,20 +113,25 @@ namespace BeAnal.Wpf
             // 1. Clear the old bars from the canvas
             SpectrumCanvas.Children.Clear();
 
-            // 2. Resize our array to match the new settings
-            Array.Resize(ref _barRectangles, _settings.NumberOfBars);
-
+            // 2. Create our bar and peak rectangles
+            _barRectangles = new Rectangle[_settings.NumberOfBars];
+            _peakRectangles = new Rectangle[_settings.NumberOfBars];
+            
             // 3. Re-run the setup logic with the new settings
             for (int i = 0; i < _settings.NumberOfBars; i++)
             {
-                var rect = new Rectangle
+                var barRect = new Rectangle { Fill = CreateGradientBrush() };
+                Canvas.SetBottom(barRect, 0); // Anchor the bars to the bottom
+                _barRectangles[i] = barRect;
+                SpectrumCanvas.Children.Add(barRect);
+
+                var peakRect = new Rectangle
                 {
-                    Height = 0,
-                    Fill = CreateGradientBrush()
+                    Height = 2,
+                    Fill = new SolidColorBrush(_settings.PeakColor)
                 };
-                Canvas.SetBottom(rect, 0); // Anchor the bars to the bottom
-                _barRectangles[i] = rect;
-                SpectrumCanvas.Children.Add(rect);
+                _peakRectangles[i] = peakRect;
+                SpectrumCanvas.Children.Add(peakRect);
             }
 
             // --- DIAGNOSTIC: Color the last bar blue ---
@@ -132,17 +149,17 @@ namespace BeAnal.Wpf
         {
             // This method is the single source of truth for bar layout
             // don't do anything if the bars haven't been created yet or the canvas isn't ready
-            if (_barRectangles is null || _barRectangles.Length == 0 ||SpectrumCanvas.ActualWidth == 0)
-            {
-                return;
-            }
-
+            if (_barRectangles is null || _barRectangles.Length == 0 ||SpectrumCanvas.ActualWidth == 0) return;
+            
             double barwidth = SpectrumCanvas.ActualWidth / _settings.NumberOfBars;
 
             for (int i = 0; i < _settings.NumberOfBars; i++)
             {
                 _barRectangles[i].Width = barwidth;
                 Canvas.SetLeft(_barRectangles[i], i * barwidth);
+
+                _peakRectangles[i].Width = barwidth;
+                Canvas.SetLeft(_peakRectangles[i], i * barwidth);
             }
         }
 

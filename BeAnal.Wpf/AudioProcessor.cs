@@ -13,7 +13,7 @@ namespace BeAnal.Wpf
     {
 
 
-        public event Action<double[]>? ProcessedDataAvailable;
+        public event Action<VisualizerData>? ProcessedDataAvailable;
         public const int FFTSize = 1024;
 
         private readonly Settings _settings;
@@ -21,17 +21,26 @@ namespace BeAnal.Wpf
 
         private int _FFTBufferIndex = 0;
         private Complex[] _FFTBuffer = new Complex[FFTSize];
+
+
         private (int Start, int End)[] _barToBinMap;
         private double[] _lastBarHeights;
-        private int _lastNumberOfBars = 0;
+        //private int _lastNumberOfBars = 0;
         private float[] _monoSampleBuffer = new float[FFTSize]; // RMS Test buffer
         private bool _rebuildBarMap = true;
+
+        private double[] _peakLevels;
+        private int[] _peakHoldCounters;
+
 
         public AudioProcessor(Settings settings)
         {
             _settings = settings;
             _barToBinMap = Array.Empty<(int, int)>();
             _lastBarHeights = Array.Empty<double>();
+
+            _peakLevels = Array.Empty<double>();
+            _peakHoldCounters = Array.Empty<int>();
 
             _settings.PropertyChanged += OnSettingsChanged;
         }
@@ -134,7 +143,7 @@ namespace BeAnal.Wpf
                         peakMagnitude = FFTMagnitudes[j];
                     }
                 }
-                
+
 
                 // This codeblock performs the smoothing function.
                 // It determines the direction of change (up or down), and applies an appropriate
@@ -148,13 +157,44 @@ namespace BeAnal.Wpf
                 _lastBarHeights[i] = newHeight;
             }
 
-            ProcessedDataAvailable?.Invoke(finalBarHeights);
+            // Peak Detection Logic Block
+            for (int i = 0; i < finalBarHeights.Length; i++)
+            {
+                double currentBarHeight = finalBarHeights[i];
+
+                if (currentBarHeight >= _peakLevels[i])
+                {
+                    _peakLevels[i] = currentBarHeight;
+                    _peakHoldCounters[i] = _settings.PeakHoldTime;
+                }
+                else
+                {
+                    if (_peakHoldCounters[i] > 0)
+                    {
+                        _peakHoldCounters[i]--;
+                    }
+                    else
+                    {
+                        _peakLevels[i] -= _settings.PeakDecayRate;
+                    }
+                }
+
+                if (_peakLevels[i] < currentBarHeight)
+                {
+                    _peakLevels[i] = currentBarHeight;
+                }
+            }
+
+            ProcessedDataAvailable?.Invoke(new VisualizerData(finalBarHeights, _peakLevels));
         }
 
         private void UpdateBarToBinMapping()
         {
             Array.Resize(ref _barToBinMap, _settings.NumberOfBars);
             Array.Resize(ref _lastBarHeights, _settings.NumberOfBars);
+
+            Array.Resize(ref _peakLevels, _settings.NumberOfBars);
+            Array.Resize(ref _peakHoldCounters, _settings.NumberOfBars);
 
             int maxFFTIndex = FFTSize / 2 - 1;
             double frequencyResolution = 48000 / FFTSize;

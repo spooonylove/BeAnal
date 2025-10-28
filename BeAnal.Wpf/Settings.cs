@@ -1,49 +1,69 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
-using System.Windows.Forms;
 using System.Windows.Media;
 
 namespace BeAnal.Wpf
 {
     public class Settings : INotifyPropertyChanged
     {
-        public event PropertyChangedEventHandler? PropertyChanged;
-
-        private int _numberOfBars { get; set; } = 64;
-        private double _sensitivity { get; set; } = 20.0;
-        public Color LowColor { get; set; } = Colors.Green;
-        public Color HighColor { get; set; } = Colors.Red;
-        public bool IsAlwaysOnTop { get; set; } = true;
-
+        private int _numberOfBars = 64;
+        private double _sensitivity = 1.0;
+        private bool _isAlwaysOnTop = true;
+        private Color _lowColor = Colors.Blue;
+        private Color _highColor = Colors.Red;
+        private int _peakHoldTime = 10;
+        private double _peakDecayRate = 0.2;
+        private Color _peakColor = Colors.Red;
 
         public int NumberOfBars
         {
             get => _numberOfBars;
-            set
-            {
-                if (_numberOfBars != value)
-                {
-                    _numberOfBars = value;
-                    OnPropertyChanged();
-                }
-
-            }
-
+            set { if (_numberOfBars != value) { _numberOfBars = value; OnPropertyChanged(); } }
         }
-
+        
         public double Sensitivity
         {
             get => _sensitivity;
-            set
-            {
-                if (_sensitivity != value)
-                {
-                    _sensitivity = value;
-                    OnPropertyChanged();
-                }
-            }
+            set { if (_sensitivity != value) { _sensitivity = value; OnPropertyChanged(); } }
         }
 
+        public bool IsAlwaysOnTop
+        {
+            get => _isAlwaysOnTop;
+            set { if (_isAlwaysOnTop != value) { _isAlwaysOnTop = value; OnPropertyChanged(); } }
+        }
+
+        public Color LowColor
+        {
+            get => _lowColor;
+            set { if (_lowColor != value) { _lowColor = value; OnPropertyChanged(); } }
+        }
+
+        public Color HighColor
+        {
+            get => _highColor;
+            set { if (_highColor != value) { _highColor = value; OnPropertyChanged(); } }
+        }
+        
+        public int PeakHoldTime
+        {
+            get => _peakHoldTime;
+            set { if (_peakHoldTime != value) { _peakHoldTime = value; OnPropertyChanged(); } }
+        }
+        
+        public double PeakDecayRate
+        {
+            get => _peakDecayRate;
+            set { if (_peakDecayRate != value) { _peakDecayRate = value; OnPropertyChanged(); } }
+        }
+        
+        public Color PeakColor
+        {
+            get => _peakColor;
+            set { if (_peakColor != value) { _peakColor = value; OnPropertyChanged(); } }
+        }
+
+        public event PropertyChangedEventHandler? PropertyChanged;
         protected void OnPropertyChanged([CallerMemberName] string? propertyName = null)
         {
             PropertyChanged?.Invoke(this, new PropertyChangedEventArgs(propertyName));
