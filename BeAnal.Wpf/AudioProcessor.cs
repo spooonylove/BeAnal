@@ -204,14 +204,11 @@ namespace BeAnal.Wpf
 #endif
         }
 
-        private double ConvertToDB(Complex c)
+        private double ConvertToDB(double linearMagnitude)
         {
             const double maxHeight = 100.0;
             const double mindB = -60.0; //The "silence" threshold
             const double maxdB = 0.0; // The "max volume" threshold
-
-            // 1. Calculate the raw lineaer magnitude
-            double linearMagnitude = Math.Sqrt(c.X * c.X + c.Y * c.Y);
 
             // Prevent math error with log(0)
             if (linearMagnitude <= 0) return 0;
