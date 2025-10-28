@@ -161,26 +161,29 @@ namespace BeAnal.Wpf
             {
                 // Attack Release settings for smoothing function
                 double attack = 0.4;
-                double release = 0.1;
+                double release = 0.4;
 
                 for (int i = 0; i < _settings.NumberOfBars; i++)
                 {
                     // 1. Get the start and end bins for this bar from our map
                     var (startBin, endBin) = _barFFTBinMap[i];
 
-                    // 2. Find the peak magnitude within that range of bins
-                    double peakMagnitude = 0;
+                    // 2. Calculate the average magnitude within the range of bins
+                    double sumMagnitude = 0;
+                    int binCount = 0;
 
                     for (int j = startBin; j < endBin; j++)
                     {
-                        if (j < FFTData.Length && FFTData[j] > peakMagnitude)
+                        if (j < FFTData.Length)
                         {
-                            peakMagnitude = FFTData[j];
+                            sumMagnitude += FFTData[j];
+                            binCount++;
                         }
                     }
+                    double averageMagnitude = (binCount > 0) ? sumMagnitude / binCount : 0;
 
                     // 3. Use that peak fro the smoothing and drawing logic
-                    double targetHeight = (peakMagnitude / 100.0) * SpectrumCanvas.ActualHeight;
+                    double targetHeight = (averageMagnitude / 100.0) * SpectrumCanvas.ActualHeight;
 
                     //Smothing functions, yo!
                     double lastHeight = _lastBarHeights[i];
