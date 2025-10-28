@@ -23,14 +23,3 @@
 - [ ] integration (delay, soft roll off)
 - [ ] Peak detection integration and variable roll-off
 
-
-# AI Context
-## Purpose
-I am writing a windows-based graphical audio spectrum analyzer. With AI's help, I have an established code base using the following tools:
-- VSCode as my IDE
-- DotNet libraries
-- C#
-
-I plan to continue to integrate new features (summarized in goals section above). 
-
-

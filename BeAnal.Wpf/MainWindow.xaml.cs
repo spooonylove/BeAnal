@@ -3,8 +3,8 @@ using System.Windows;           // Required for WPF classes like windows
 using System.Windows.Shapes;    //Required for Rectangle
 using System.Windows.Media;     // Required for Brushes
 using System.Windows.Controls;
-using System.Formats.Asn1;
-using NAudio.Wave.SampleProviders;
+using System.ComponentModel;
+using Accessibility;
 
 
 namespace BeAnal.Wpf
@@ -16,9 +16,7 @@ namespace BeAnal.Wpf
         private readonly Settings _settings;
         private readonly AudioProcessor _audioProcessor;
         private Rectangle[] _barRectangles;
-        private bool _isWindowLoaded = false;
-
-
+        
         public MainWindow()
         {
             InitializeComponent();
@@ -26,35 +24,67 @@ namespace BeAnal.Wpf
             _settings = new Settings();
             // Create and prepare the audio engine
             _audioProcessor = new AudioProcessor(_settings);
-            _audioProcessor.ProcessedDataAvailable += OnProcessedDataAvailable;      
+            
 
-            // Create the Visual Bar objects
-            _barRectangles = new Rectangle[_settings.NumberOfBars];      
-
-            // Hook into the window's lifecycle events
+            // Hook into events
+            _settings.PropertyChanged += OnSettingsChanged;
+            _audioProcessor.ProcessedDataAvailable += OnProcessedDataAvailable;
             this.Loaded += OnWindowLoaded;
             this.Closing += OnWindowClosing;
+            this.SizeChanged += OnWindowSizeChanged;
 
             // Making the bordless window dragable
             this.MouseLeftButtonDown += (s, e) => DragMove();
-
-            // Refresh the visualization when resized
-            this.SizeChanged += OnWindowSizeChanged;
-
-            // UI will sit on top
-            this.Topmost = _settings.IsAlwaysOnTop;
         }
 
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
-            RebuildVisualizer();
+            // Perform intial setup nce the window is fully loaded
+            UpdateVisualizerLayout();
+            UpdateWindowSettings();
+
             _audioProcessor.Start();
-            _isWindowLoaded = true;
+        }
+
+        private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
+        {
+            // Cleaning shut down the audio engine
+            _audioProcessor.Dispose();
+        }
+
+        private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // THis event handler is the central point for reacting to settings changes.
+            // Using a switch ensure that we only update  whats necessary
+            Dispatcher.Invoke(() =>
+            {
+                switch (e.PropertyName)
+                {
+                    //these properties require a full rebuild of the visual elements
+                    case nameof(Settings.NumberOfBars):
+                    case nameof(Settings.LowColor):
+                    case nameof(Settings.HighColor):
+                        // This is an expensive operation, so only do it when you need to!
+                        UpdateVisualizerLayout();
+                        break;
+                    case nameof(Settings.IsAlwaysOnTop):
+                        UpdateWindowSettings();
+                        break;
+                }
+            });
+        }
+        
+        private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
+        {
+            // A resize doesn't require rebuilding the bars, only repositioning them.
+            // This is to safe call even during initiatization because of the null checks within
+            UpdateBarPositionsAndWidths();
         }
         private void OnProcessedDataAvailable(double[] barHeights)
         {
             Dispatcher.BeginInvoke(() =>
             {
+                // Safety check: if settings changed and the bar array is out of sync, abort the frame
                 if (_barRectangles.Length != barHeights.Length) return;
 
                 for (int i = 0; i < barHeights.Length; i++)
@@ -65,24 +95,8 @@ namespace BeAnal.Wpf
                 }
             });
         }
-        private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
-        {
-            if (!_isWindowLoaded) return;
-
-            UpdateBarLayout();
-        }
-        private void OnSettingsChanged()
-        {
-            this.Topmost = _settings.IsAlwaysOnTop;
-
-            // This is an expensive operation, so we only do it if the bar count has changed
-            if (_barRectangles.Length != _settings.NumberOfBars)
-            {
-                RebuildVisualizer();
-            }
-        }
-        
-        private void RebuildVisualizer()
+                
+        private void UpdateVisualizerLayout()
         {
             // 1. Clear the old bars from the canvas
             SpectrumCanvas.Children.Clear();
@@ -91,10 +105,6 @@ namespace BeAnal.Wpf
             Array.Resize(ref _barRectangles, _settings.NumberOfBars);
 
             // 3. Re-run the setup logic with the new settings
-            CreateBars();
-        }
-        private void CreateBars()
-        {
             for (int i = 0; i < _settings.NumberOfBars; i++)
             {
                 var rect = new Rectangle
@@ -107,21 +117,22 @@ namespace BeAnal.Wpf
                 SpectrumCanvas.Children.Add(rect);
             }
 
-            UpdateBarLayout();
-
             // --- DIAGNOSTIC: Color the last bar blue ---
             if (_barRectangles.Length > 0)
             {
                 _barRectangles[_settings.NumberOfBars - 1].Fill = Brushes.Blue;
             }
             // --- END DIAGNOSTIC --- 
+
+            // After creating the bars, update their positions and widths
+            UpdateBarPositionsAndWidths();
         }
 
-        private void UpdateBarLayout()
+        private void UpdateBarPositionsAndWidths()
         {
             // This method is the single source of truth for bar layout
-            // don't do anything if the bars haven't been created yet
-            if (_barRectangles is null || _barRectangles.Length == 0 || _barRectangles[0] is null || SpectrumCanvas.ActualWidth == 0)
+            // don't do anything if the bars haven't been created yet or the canvas isn't ready
+            if (_barRectangles is null || _barRectangles.Length == 0 ||SpectrumCanvas.ActualWidth == 0)
             {
                 return;
             }
@@ -135,6 +146,12 @@ namespace BeAnal.Wpf
             }
         }
 
+        private void UpdateWindowSettings()
+        {
+            // UI will sit on top (or not) based on the setting
+            this.Topmost = _settings.IsAlwaysOnTop;
+        }
+
         private Brush CreateGradientBrush()
         {
             return new LinearGradientBrush(_settings.LowColor, _settings.HighColor, 90);
@@ -143,7 +160,7 @@ namespace BeAnal.Wpf
         private void Settings_Click(object sender, RoutedEventArgs e)
         {
             var settingsWindow = new SettingsWindow(_settings);
-            settingsWindow.SettingsChanged += OnSettingsChanged;
+            
             settingsWindow.Owner = this;
             settingsWindow.ShowDialog();
 
@@ -152,11 +169,6 @@ namespace BeAnal.Wpf
         {
             Application.Current.Shutdown();
         }        
-        private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
-        {
-            // Cleaning shut down the audio engine
-            _audioProcessor.Dispose();
-        }
 
     }
 }

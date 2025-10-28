@@ -4,6 +4,7 @@ using System;
 using System.Windows.Media.Animation;
 using System.Drawing;
 using System.Windows.Documents;
+using System.ComponentModel;
 
 
 namespace BeAnal.Wpf
@@ -24,12 +25,15 @@ namespace BeAnal.Wpf
         private double[] _lastBarHeights;
         private int _lastNumberOfBars = 0;
         private float[] _monoSampleBuffer = new float[FFTSize]; // RMS Test buffer
+        private bool _rebuildBarMap = true;
 
         public AudioProcessor(Settings settings)
         {
             _settings = settings;
             _barToBinMap = Array.Empty<(int, int)>();
             _lastBarHeights = Array.Empty<double>();
+
+            _settings.PropertyChanged += OnSettingsChanged;
         }
 
         public void Start()
@@ -37,6 +41,15 @@ namespace BeAnal.Wpf
             _capture = new WasapiLoopbackCapture();
             _capture.DataAvailable += OnDataAvailable;
             _capture.StartRecording();
+        }
+
+        private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
+        {
+            // If a property that affects a bar layout changes, set the flag!
+            if (e.PropertyName == nameof(Settings.NumberOfBars))
+            {
+                _rebuildBarMap = true;
+            }
         }
 
 
@@ -82,10 +95,10 @@ namespace BeAnal.Wpf
 
         private void ProcessFFTData()
         {
-            if (_lastNumberOfBars != _settings.NumberOfBars)
+            if (_rebuildBarMap)
             {
                 UpdateBarToBinMapping();
-                _lastNumberOfBars = _settings.NumberOfBars;
+                _rebuildBarMap = ;
             }
 
             double[] FFTMagnitudes = new double[FFTSize / 2];
