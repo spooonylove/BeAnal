@@ -91,7 +91,14 @@ namespace BeAnal.Wpf
             double[] FFTMagnitudes = new double[FFTSize / 2];
             for (int i = 0; i < FFTMagnitudes.Length; i++)
             {
-                FFTMagnitudes[i] = ConvertToDB(_FFTBuffer[i]);
+                // 1. Calculate the raw linear magnitude from the complex FFT signal
+                double rawMagnitude = Math.Sqrt(_FFTBuffer[i].X * _FFTBuffer[i].X + _FFTBuffer[i].Y * _FFTBuffer[i].Y);
+
+                // 2. Apply the amplitdue correction for the Hann Window
+                double correctedMagnitude = rawMagnitude * 2.0;
+                
+                // 3. Pass the corercted mangtidue for dB conversion
+                FFTMagnitudes[i] = ConvertToDB(correctedMagnitude);
             }
 
             double[] finalBarHeights = new double[_settings.NumberOfBars];
@@ -102,45 +109,27 @@ namespace BeAnal.Wpf
             {
                 var (startBin, endBin) = _barToBinMap[i];
 
-                //-- Optimized Averaging Logic ---
-                double sumMagnitude = 0;
-                int binCount = endBin - startBin;
-                const int maxBinstoAverage = 10; // this is a performance tunable variable. lower is faster, higher is more accurate.
+                // -- Peak Detection Logic --
+                double peakMagnitude = 0; ;
 
-                if (binCount <= 0)
+                // Iterate through all the bins assigned to this bar
+                for (int j = startBin; j < endBin; j++)
                 {
-                    // Safety check for empty ranges
-                }
-                else if (binCount <= maxBinstoAverage)
-                {
-                    // This is for lowcount bins.  Do all the math, because its fast
-                    for (int j = startBin; j < endBin; j++)
+                    //find the highest magnitude in the range  <-- this would be easy in python, yo
+                    if (j < FFTMagnitudes.Length && FFTMagnitudes[j] > peakMagnitude)
                     {
-                        if (j < FFTMagnitudes.Length) sumMagnitude += FFTMagnitudes[j];
-
+                        peakMagnitude = FFTMagnitudes[j];
                     }
                 }
-                else
-                {
-                    // When bin counts are higher, don't do all the math, its labor-intensive.
-                    // ... instead, step througth the range equally, taking samples along the way
-                    binCount = maxBinstoAverage;
-                    for (int j = 0; j < maxBinstoAverage; j++)
-                    {
-                        int binIndex = startBin + (j * (endBin - startBin) / maxBinstoAverage);
-                        if (binIndex < FFTMagnitudes.Length) sumMagnitude += FFTMagnitudes[binIndex];
-                    }
-                }
-
-                double averageMagnitude = (binCount > 0) ? sumMagnitude / binCount : 0;
+                
 
                 // This codeblock performs the smoothing function.
                 // It determines the direction of change (up or down), and applies an appropriate
                 // scaling factor.
                 double lastHeight = _lastBarHeights[i];
-                double newHeight = (averageMagnitude > lastHeight)
-                    ? (averageMagnitude * attack) + (lastHeight * (1 - attack))
-                    : (averageMagnitude * release) + (lastHeight * (1 - release));
+                double newHeight = (peakMagnitude > lastHeight)
+                    ? (peakMagnitude * attack) + (lastHeight * (1 - attack))
+                    : (peakMagnitude * release) + (lastHeight * (1 - release));
 
                 finalBarHeights[i] = newHeight;
                 _lastBarHeights[i] = newHeight;
