@@ -3,6 +3,7 @@ using NAudio.Dsp;
 using System;
 using System.Windows.Media.Animation;
 using System.Drawing;
+using System.Windows.Documents;
 
 
 namespace BeAnal.Wpf
@@ -10,7 +11,7 @@ namespace BeAnal.Wpf
     public class AudioProcessor : IDisposable
     {
 
-        
+
         public event Action<double[]>? ProcessedDataAvailable;
         public const int FFTSize = 1024;
 
@@ -22,7 +23,7 @@ namespace BeAnal.Wpf
         private (int Start, int End)[] _barToBinMap;
         private double[] _lastBarHeights;
         private int _lastNumberOfBars = 0;
-
+        private float[] _monoSampleBuffer = new float[FFTSize]; // RMS Test buffer
 
         public AudioProcessor(Settings settings)
         {
@@ -56,6 +57,9 @@ namespace BeAnal.Wpf
                 float rightSample = (i + 1 < buffer.FloatBuffer.Length) ? buffer.FloatBuffer[i + 1] : leftSample;
                 float monoSample = (leftSample + rightSample) / 2.0f;
 
+                //Store the raw mono sample for the RMS testing below
+                _monoSampleBuffer[_FFTBufferIndex] = monoSample;
+
                 //Now, use the mono sample to fill our FFT buffer
                 _FFTBuffer[_FFTBufferIndex].X = (float)(monoSample * FastFourierTransform.HannWindow(_FFTBufferIndex, FFTSize));
                 _FFTBuffer[_FFTBufferIndex].Y = 0;
@@ -64,6 +68,12 @@ namespace BeAnal.Wpf
             //When the FFT Buffre is full, we process it
             if (_FFTBufferIndex >= FFTSize)
             {
+
+                // --- DIAGNOSTIC --- RMS validation
+                double rmsValue = CalculateRMS(_monoSampleBuffer);
+                System.Diagnostics.Debug.WriteLine($"RMS Amplitude: {rmsValue:F6}");
+                // --- END DIAGNOSTIC --- RMS validation
+
                 _FFTBufferIndex = 0; // Reset for the next batch  
                 FastFourierTransform.FFT(true, (int)Math.Log(FFTSize, 2.0), _FFTBuffer);
                 ProcessFFTData();
@@ -158,12 +168,15 @@ namespace BeAnal.Wpf
             if (_settings.NumberOfBars > linearBarCount)
             {
                 int logBarCount = _settings.NumberOfBars - linearBarCount;
-                double minLogFreq = lastLinearBin + frequencyResolution;
+                double minLogFreq = lastLinearBin * frequencyResolution;
                 double maxLogFreq = 20000; // We are setting the max frequency. only dogs are hearing up there, anyway.
+
+                // establish a clean handoff between linear and log
+                int lastBin = lastLinearBin;
 
                 for (int i = 0; i < logBarCount; i++)
                 {
-                    double freqStart = minLogFreq * Math.Pow(maxLogFreq / minLogFreq, (double)i / logBarCount);
+                    double freqStart = minLogFreq * Math.Pow(maxLogFreq / minLogFreq, (double)(i) / logBarCount);
                     double freqEnd = minLogFreq * Math.Pow(maxLogFreq / minLogFreq, (double)(i + 1) / logBarCount);
 
                     int binStartIndex = (int)(freqStart / frequencyResolution);
@@ -175,8 +188,8 @@ namespace BeAnal.Wpf
                     _barToBinMap[i + linearBarCount] = (binStartIndex, binEndIndex);
                 }
             }
-            
-            #if DEBUG
+
+#if DEBUG
             Console.WriteLine("--- Lin-Log Hybrid Mapping ---");
 
             for (int i = 0; i < _settings.NumberOfBars; i++)
@@ -188,7 +201,7 @@ namespace BeAnal.Wpf
                 Console.WriteLine($"Bar {i,3}: Bins {startBin,3}-{endBin,3} (~{startFreq,5:F0} - {endFreq,5:F0} Hz)");
             }
             Console.WriteLine("--- End of Mapping ---");
-            #endif
+#endif
         }
 
         private double ConvertToDB(Complex c)
@@ -224,11 +237,33 @@ namespace BeAnal.Wpf
 
             // 2. Important: Unsubscribe from the event to prevent a race condition
             if (_capture != null) _capture.DataAvailable -= OnDataAvailable;
-            
+
             // 3. Now its safe to dispose the object.
             _capture?.Dispose();
 
             _capture = null;
+        }
+
+        public double CalculateRMS(float[] samples)
+        {
+            if (samples == null || samples.Length == 0)
+            {
+                return 0.0;
+            }
+
+            // 1. Sum the square of the samples
+            // Using the dobule for the sum to prevent potential overflow an precision losses
+            double sumOfSquares = 0.0;
+            for (int i = 0; i < samples.Length; i++)
+            {
+                sumOfSquares += samples[i] * samples[i];
+            }
+
+            // 2. Calculate the mean of the squares
+            double meanSquare = sumOfSquares / samples.Length;
+
+            // 3. Return the square root of the mean
+            return Math.Sqrt(meanSquare);
         }
         
     }
