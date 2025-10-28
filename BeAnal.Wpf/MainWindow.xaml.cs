@@ -4,6 +4,7 @@ using System.Windows.Shapes;    //Required for Rectangle
 using System.Windows.Media;     // Required for Brushes
 using System.Windows.Controls;
 using System.Formats.Asn1;
+using NAudio.Wave.SampleProviders;
 
 
 namespace BeAnal.Wpf
@@ -160,8 +161,8 @@ namespace BeAnal.Wpf
             Dispatcher.BeginInvoke(() =>
             {
                 // Attack Release settings for smoothing function
-                double attack = 0.4;
-                double release = 0.4;
+                double attack = 1;
+                double release = 1;
 
                 for (int i = 0; i < _settings.NumberOfBars; i++)
                 {
@@ -170,15 +171,29 @@ namespace BeAnal.Wpf
 
                     // 2. Calculate the average magnitude within the range of bins
                     double sumMagnitude = 0;
-                    int binCount = 0;
+                    int binCount = endBin - startBin;
+                    const int maxBinstoAverage = 10; // Performance tuning knob!
 
-                    for (int j = startBin; j < endBin; j++)
+                    if (binCount <= maxBinstoAverage)
                     {
-                        if (j < FFTData.Length)
+                        // if the range is small, average all bins for full accuracy
+                        for (int j = startBin; j < endBin; j++)
                         {
-                            sumMagnitude += FFTData[j];
-                            binCount++;
+                            if (j < FFTData.Length)
+                            {
+                                sumMagnitude += FFTData[j];
+                            }
                         }
+                    }
+                    else
+                    {
+                        // If the range is large, sample evenly across the range to save performance
+                        for (int j = 0; j < maxBinstoAverage; j++)
+                        {
+                            int binIndex = startBin + (j * binCount / maxBinstoAverage);
+                            if (binIndex < FFTData.Length) sumMagnitude += FFTData[binIndex];
+                        }
+                        binCount = maxBinstoAverage;
                     }
                     double averageMagnitude = (binCount > 0) ? sumMagnitude / binCount : 0;
 
