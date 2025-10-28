@@ -98,7 +98,7 @@ namespace BeAnal.Wpf
             if (_rebuildBarMap)
             {
                 UpdateBarToBinMapping();
-                _rebuildBarMap = ;
+                _rebuildBarMap = false;
             }
 
             double[] FFTMagnitudes = new double[FFTSize / 2];

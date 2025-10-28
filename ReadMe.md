@@ -14,12 +14,12 @@
 - [x] Am I currenlty organizing this code "the right way"?  the answer could be yes, but i feel like code is often separated by function more than i'm currently set up.
 - [ ] Can I abstract out the code in a way to make it easier to implement changes?
 - [x] my folder structure is set up with BeAnal at the lowest directory structure, with the UI in a subfolder. that seems.. weird?
-- [ ] FIX: UpdateBarLayout. it has a pile of ugly conditionals attempting to catch various ways the UI is asked to update before its ready. this is a dumb way to do it. we should set a flag set by the UI where the action is happening rather than attempting to anticipate every way it could fail.
+- [x] FIX: UpdateBarLayout. it has a pile of ugly conditionals attempting to catch various ways the UI is asked to update before its ready. this is a dumb way to do it. we should set a flag set by the UI where the action is happening rather than attempting to anticipate every way it could fail.
 ## 3. Advanced configs
 - [x] strip the border
 - [ ] transparency options inside the canvas
 - [ ] run-time configurable always-on-top
 - [ ] mouse hover-over makes the app briefly minimize (so it doesn't interfere with items below)
-- [ ] integration (delay, soft roll off)
+- [x] attack/release (delay, soft roll off)
 - [ ] Peak detection integration and variable roll-off
 
