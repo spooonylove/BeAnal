@@ -22,7 +22,7 @@ namespace BeAnal.Wpf
         {
             InitializeComponent();
 
-            _settings = new Settings();
+            _settings = SettingsService.LoadSettings();
             // Create and prepare the audio engine
             _audioProcessor = new AudioProcessor(_settings);
             
@@ -53,6 +53,9 @@ namespace BeAnal.Wpf
 
         private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            // Save current settings to file
+            SettingsService.SaveSettings(_settings);
+
             // Cleaning shut down the audio engine
             _audioProcessor.Dispose();
         }
