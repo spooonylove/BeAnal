@@ -5,3 +5,6 @@
 # User-specific files
 *.user
 *.suo
+
+# VSCode Stuff
+.vscode/
