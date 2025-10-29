@@ -7,4 +7,5 @@
 *.suo
 
 # VSCode Stuff
+.vs/
 .vscode/
