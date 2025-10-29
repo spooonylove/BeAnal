@@ -1,5 +1,6 @@
 using System.ComponentModel;
 using System.Runtime.CompilerServices;
+using System.Windows;
 using System.Windows.Media;
 
 namespace BeAnal.Wpf
@@ -14,6 +15,13 @@ namespace BeAnal.Wpf
         private int _peakHoldTime = 10;
         private double _peakDecayRate = 0.2;
         private Color _peakColor = Colors.Red;
+
+        //Window Properties
+        private double _windowHeight = 450;
+        private double _windowWidth = 800;
+        private double _windowTop = 100;
+        private double _windowLeft = 100;
+        private WindowState _windowState = WindowState.Normal;
 
         public int NumberOfBars
         {
@@ -61,6 +69,36 @@ namespace BeAnal.Wpf
         {
             get => _peakColor;
             set { if (_peakColor != value) { _peakColor = value; OnPropertyChanged(); } }
+        }
+
+        public double WindowHeight
+        {
+            get => _windowHeight;
+            set { if (_windowHeight != value) { _windowHeight = value; OnPropertyChanged(); } }
+        }
+
+        public double WindowWidth
+        {
+            get => _windowWidth;
+            set { if (_windowWidth != value) { _windowWidth = value; OnPropertyChanged(); } }
+        }
+
+        public double WindowTop
+        {
+            get => _windowTop;
+            set { if (_windowTop != value) { _windowTop = value; OnPropertyChanged(); } }
+        }
+
+        public double WindowLeft
+        {
+            get => _windowLeft;
+            set { if (_windowLeft != value) { _windowLeft = value; OnPropertyChanged(); } }
+        }
+        
+        public WindowState WindowState
+        {
+            get => _windowState;
+            set { if (_windowState != value) { _windowState = value; OnPropertyChanged(); } }
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

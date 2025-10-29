@@ -5,6 +5,8 @@ using System.Windows.Media;     // Required for Brushes
 using System.Windows.Controls;
 using System.ComponentModel;
 using Accessibility;
+using NAudio.Wave;
+using System.Windows.Automation.Peers;
 
 
 namespace BeAnal.Wpf
@@ -53,6 +55,16 @@ namespace BeAnal.Wpf
 
         private void OnWindowClosing(object? sender, System.ComponentModel.CancelEventArgs e)
         {
+            //Snatch the window placement/size information before closing so we can remember for next time.
+            if (this.WindowState == WindowState.Normal)
+            {
+                _settings.WindowHeight = this.Height;
+                _settings.WindowWidth = this.Width;
+                _settings.WindowTop = this.Top;
+                _settings.WindowLeft = this.Left;
+            }
+            _settings.WindowState = this.WindowState;
+
             // Save current settings to file
             SettingsService.SaveSettings(_settings);
 
@@ -170,6 +182,13 @@ namespace BeAnal.Wpf
         {
             // UI will sit on top (or not) based on the setting
             this.Topmost = _settings.IsAlwaysOnTop;
+
+            // apply any new windows position and size information
+            this.Height = _settings.WindowHeight;
+            this.Width = _settings.WindowWidth;
+            this.Top = _settings.WindowTop;
+            this.Left = _settings.WindowLeft;
+            this.WindowState = _settings.WindowState;
         }
 
         private Brush CreateGradientBrush()
