@@ -31,7 +31,7 @@ namespace BeAnal.Wpf
         private bool _rebuildBarMap = true;
 
         private double[] _peakLevels;
-        private int[] _peakHoldCounters;
+        private double[] _peakHoldTimers;
 
         private readonly Stopwatch _frameTimer = new Stopwatch();
 
@@ -39,11 +39,12 @@ namespace BeAnal.Wpf
         public AudioProcessor(Settings settings)
         {
             _settings = settings;
-            _barToBinMap = Array.Empty<(int, int)>();
-            _lastBarHeights = Array.Empty<double>();
 
-            _peakLevels = Array.Empty<double>();
-            _peakHoldCounters = Array.Empty<int>();
+            // Initialize all arrays correctly from the start
+            _barToBinMap = new (int, int)[settings.NumberOfBars];
+            _lastBarHeights = new double[settings.NumberOfBars];
+            _peakLevels = new double[settings.NumberOfBars];
+            _peakHoldTimers = new double[settings.NumberOfBars];
 
             _settings.PropertyChanged += OnSettingsChanged;
         }
@@ -136,8 +137,8 @@ namespace BeAnal.Wpf
 
             // -- Calculate smoothing factors based on elapsed time
             // Avoid division by zer if the settings is 0 (by mistake)
-            double attackFactor = (_settings.BarAttackTime > 0) ? deltaTime / (_settings.BarAttackTime / 1000.0) : 1.0;
-            double releaseFactor = (_settings.BarReleaseTime > 0) ? deltaTime / (_settings.BarReleaseTime / 1000.0) : 1.0;
+            double attackFactor = (_settings.BarAttackTimeMs > 0) ? deltaTime / (_settings.BarAttackTimeMs / 1000.0) : 1.0;
+            double releaseFactor = (_settings.BarReleaseTimeMs > 0) ? deltaTime / (_settings.BarReleaseTimeMs / 1000.0) : 1.0;
 
             // Clamp the factors to a mxax of 1.0 to prevent overshooting (can we say LAGGGG)
             attackFactor = Math.Min(1.0, attackFactor);
@@ -174,6 +175,9 @@ namespace BeAnal.Wpf
             }
 
             // Peak Detection Logic Block
+            double peakReleaseFactor = (_settings.PeakReleaseTimeMs > 0) ? deltaTime / (_settings.PeakReleaseTimeMs / 1000.0) : 1.0;
+            peakReleaseFactor = Math.Min(1.0, peakReleaseFactor);
+            
             for (int i = 0; i < finalBarHeights.Length; i++)
             {
                 double currentBarHeight = finalBarHeights[i];
@@ -181,17 +185,18 @@ namespace BeAnal.Wpf
                 if (currentBarHeight >= _peakLevels[i])
                 {
                     _peakLevels[i] = currentBarHeight;
-                    _peakHoldCounters[i] = _settings.PeakHoldTime;
+                    _peakHoldTimers[i] = _settings.PeakHoldTimeMs / 1000.0;
                 }
                 else
                 {
-                    if (_peakHoldCounters[i] > 0)
+                    if (_peakHoldTimers[i] > 0)
                     {
-                        _peakHoldCounters[i]--;
+                        _peakHoldTimers[i] -= deltaTime;
                     }
                     else
                     {
-                        _peakLevels[i] -= _settings.PeakDecayRate;
+                        // Decay the peak level based on the per-second rate
+                        _peakLevels[i] += (0 - _peakLevels[i] * peakReleaseFactor);
                     }
                 }
 
@@ -208,9 +213,8 @@ namespace BeAnal.Wpf
         {
             Array.Resize(ref _barToBinMap, _settings.NumberOfBars);
             Array.Resize(ref _lastBarHeights, _settings.NumberOfBars);
-
             Array.Resize(ref _peakLevels, _settings.NumberOfBars);
-            Array.Resize(ref _peakHoldCounters, _settings.NumberOfBars);
+            Array.Resize(ref _peakHoldTimers, _settings.NumberOfBars);
 
             int maxFFTIndex = FFTSize / 2 - 1;
             double frequencyResolution = 48000 / FFTSize;

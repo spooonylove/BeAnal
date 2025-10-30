@@ -12,13 +12,14 @@ namespace BeAnal.Wpf
         private bool _isAlwaysOnTop = true;
         private Color _lowColor = Colors.Yellow;
         private Color _highColor = Colors.Tomato;
-        private int _peakHoldTime = 10;
-        private double _peakDecayRate = 0.2;
+
         private Color _peakColor = Colors.GhostWhite;
 
         // Time-based smoothing properties
-        private int _barAttackTime = 50;  //Time in Milliseconds
-        private int _barReleaseTime = 300; //Time in Milliseconds
+        private int _barAttackTimeMs = 50;      //Time in Milliseconds
+        private int _barReleaseTimeMs = 300;    //Time in Milliseconds
+        private int _peakHoldTimeMs = 200;
+        private double _peakReleaseTimeMs = 100;
 
         //Window Properties
         private double _windowHeight = 450;
@@ -57,16 +58,16 @@ namespace BeAnal.Wpf
             set { if (_highColor != value) { _highColor = value; OnPropertyChanged(); } }
         }
         
-        public int PeakHoldTime
+        public int PeakHoldTimeMs
         {
-            get => _peakHoldTime;
-            set { if (_peakHoldTime != value) { _peakHoldTime = value; OnPropertyChanged(); } }
+            get => _peakHoldTimeMs;
+            set { if (_peakHoldTimeMs != value) { _peakHoldTimeMs = value; OnPropertyChanged(); } }
         }
         
-        public double PeakDecayRate
+        public double PeakReleaseTimeMs
         {
-            get => _peakDecayRate;
-            set { if (_peakDecayRate != value) { _peakDecayRate = value; OnPropertyChanged(); } }
+            get => _peakReleaseTimeMs;
+            set { if (_peakReleaseTimeMs != value) { _peakReleaseTimeMs = value; OnPropertyChanged(); } }
         }
         
         public Color PeakColor
@@ -75,16 +76,16 @@ namespace BeAnal.Wpf
             set { if (_peakColor != value) { _peakColor = value; OnPropertyChanged(); } }
         }
 
-        public int BarAttackTime
+        public int BarAttackTimeMs
         {
-            get => _barAttackTime;
-            set { if (_barAttackTime != value) { _barAttackTime = value; OnPropertyChanged(); } }
+            get => _barAttackTimeMs;
+            set { if (_barAttackTimeMs != value) { _barAttackTimeMs = value; OnPropertyChanged(); } }
         }
 
-        public int BarReleaseTime
+        public int BarReleaseTimeMs
         {
-            get => _barReleaseTime;
-            set { if (_barReleaseTime != value) { _barReleaseTime = value; OnPropertyChanged(); } }
+            get => _barReleaseTimeMs;
+            set { if (_barReleaseTimeMs != value) { _barReleaseTimeMs = value; OnPropertyChanged(); } }
         }
 
         // --- Windows Property Accessors
