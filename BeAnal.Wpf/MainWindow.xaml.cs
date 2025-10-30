@@ -95,6 +95,20 @@ namespace BeAnal.Wpf
                     case nameof(Settings.IsAlwaysOnTop):
                         UpdateWindowSettings();
                         break;
+                    case nameof(Settings.BackgroundOpacity):
+                        CanvasBackgroundBrush.Opacity = _settings.BackgroundOpacity;
+                        break;
+                    case nameof(Settings.BarOpacity):
+                        lock (_visualizerLock)
+                        {
+                            //update all  existing bars with the new opacity
+                            for (int i = 0; i < _barRectangles.Length; i++)
+                            {
+                                _barRectangles[i].Opacity = _settings.BarOpacity;
+                                _peakRectangles[i].Opacity = _settings.BarOpacity;
+                            }
+                        }
+                        break;
                 }
             });
         }
@@ -164,10 +178,15 @@ namespace BeAnal.Wpf
                 Array.Resize(ref _barRectangles, newNumberOfBars);
                 Array.Resize(ref _peakRectangles, newNumberOfBars);
 
-                // Create and add noly the new rectangles
+                // Create and add only the new rectangles
                 for (int i = oldNumberOfBars; i < newNumberOfBars; i++)
                 {
-                    var barRect = new Rectangle { Fill = CreateGradientBrush() };
+                    var barRect = new Rectangle
+                    {
+                        Fill = CreateGradientBrush(),
+                        Opacity = _settings.BarOpacity
+                    };
+
                     Canvas.SetBottom(barRect, 0);
                     _barRectangles[i] = barRect;
                     SpectrumCanvas.Children.Add(barRect);
@@ -175,7 +194,8 @@ namespace BeAnal.Wpf
                     var peakRect = new Rectangle
                     {
                         Height = 2,  // Peak Indicator height
-                        Fill = new SolidColorBrush(_settings.PeakColor)
+                        Fill = new SolidColorBrush(_settings.PeakColor),
+                        Opacity = _settings.BarOpacity
                     };
                     _peakRectangles[i] = peakRect;
                     SpectrumCanvas.Children.Add(peakRect);
@@ -199,7 +219,9 @@ namespace BeAnal.Wpf
             for (int i = 0; i < newNumberOfBars; i++)
             {
                 _barRectangles[i].Fill = CreateGradientBrush();
+                _barRectangles[i].Opacity = _settings.BarOpacity;
                 _peakRectangles[i].Fill = new SolidColorBrush(_settings.PeakColor);
+                _peakRectangles[i].Opacity = _settings.BarOpacity;
 
             }
 
@@ -256,6 +278,8 @@ namespace BeAnal.Wpf
             this.Top = _settings.WindowTop;
             this.Left = _settings.WindowLeft;
             this.WindowState = _settings.WindowState;
+
+            CanvasBackgroundBrush.Opacity = _settings.BackgroundOpacity;
         }
 
         private Brush CreateGradientBrush()

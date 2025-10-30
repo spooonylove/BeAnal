@@ -21,6 +21,10 @@ namespace BeAnal.Wpf
         private int _peakHoldTimeMs = 200;
         private double _peakReleaseTimeMs = 100;
 
+        // Opacity Settings
+        private double _backgroundOpacity = 1.0;
+        private double _barOpacity = 1.0;
+
         //Window Properties
         private double _windowHeight = 450;
         private double _windowWidth = 800;
@@ -86,6 +90,18 @@ namespace BeAnal.Wpf
         {
             get => _barReleaseTimeMs;
             set { if (_barReleaseTimeMs != value) { _barReleaseTimeMs = value; OnPropertyChanged(); } }
+        }
+
+        public double BackgroundOpacity
+        {
+            get => _backgroundOpacity;
+            set { if (_backgroundOpacity != value) { _backgroundOpacity = value; OnPropertyChanged(); } }
+        }
+
+        public double BarOpacity
+        {
+            get => _barOpacity;
+            set { if (_barOpacity != value) { _barOpacity = value; OnPropertyChanged(); } }
         }
 
         // --- Windows Property Accessors

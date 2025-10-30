@@ -11,7 +11,10 @@
         Background="Transparent"
         ResizeMode="CanResizeWithGrip">
     <Grid>
-        <Canvas x:Name="SpectrumCanvas" Background="Black">
+        <Canvas x:Name="SpectrumCanvas">
+            <Canvas.Background>
+                <SolidColorBrush x:Name="CanvasBackgroundBrush" Color="Black" />
+            </Canvas.Background>
             <Canvas.ContextMenu>
                 <ContextMenu>
                     <MenuItem Header="Settings..." Click="Settings_Click"/>

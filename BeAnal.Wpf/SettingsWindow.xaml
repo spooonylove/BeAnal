@@ -85,6 +85,18 @@
                 <GroupBox Header="General Settings">
                     <StackPanel Margin="5">
                         <CheckBox x:Name="AlwaysOnTopCheckBox" Content="Always on Top" IsChecked="{Binding IsAlwaysOnTop, Mode=TwoWay}" />
+
+                        <TextBlock Text="Background Opacity:" Margin="0,10,0,0" />
+                        <Slider x:Name="BackgroundOpacitySlider" Minimum="0.0" Maximum="1.0" 
+                                Value="{Binding BackgroundOpacity, Mode=TwoWay}" />
+                        <TextBlock Text="{Binding Value, ElementName=BackgroundOpacitySlider, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                        
+                        
+                        <TextBlock Text="Bar Opacity:" Margin="0,10,0,0" />
+                        <Slider x:Name="BarOpacitySlider" Minimum="0.0" Maximum="1.0" 
+                                Value="{Binding BarOpacity, Mode=TwoWay}" />
+                        <TextBlock Text="{Binding Value, ElementName=BarOpacitySlider, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                        
                     </StackPanel>
                 </GroupBox>
 
