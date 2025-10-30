@@ -164,17 +164,27 @@ namespace BeAnal.Wpf
         {
             // This method is the single source of truth for bar layout
             // don't do anything if the bars haven't been created yet or the canvas isn't ready
-            if (_barRectangles is null || _barRectangles.Length == 0 ||SpectrumCanvas.ActualWidth == 0) return;
-            
-            double barwidth = SpectrumCanvas.ActualWidth / _settings.NumberOfBars;
+            if (_barRectangles is null || _barRectangles.Length == 0 || SpectrumCanvas.ActualWidth == 0) return;
+
+            // Defin the spacing you want between the bars
+            double barSpacing = 2.0;
+
+            // Calculate the total width available for each bar slot
+            double totalSlotWidth = SpectrumCanvas.ActualWidth / _settings.NumberOfBars;
+
+            // The actual width of the bar is the slot width minus the spacing
+            //      Ensure itsr not less than zero
+            double barwidth = Math.Max(0, totalSlotWidth - barSpacing);
 
             for (int i = 0; i < _settings.NumberOfBars; i++)
             {
+                // Position each bar at the start of its slot. the empty space will be created by the 
+                //  reduced width
                 _barRectangles[i].Width = barwidth;
-                Canvas.SetLeft(_barRectangles[i], i * barwidth);
+                Canvas.SetLeft(_barRectangles[i], i * totalSlotWidth);
 
                 _peakRectangles[i].Width = barwidth;
-                Canvas.SetLeft(_peakRectangles[i], i * barwidth);
+                Canvas.SetLeft(_peakRectangles[i], i * totalSlotWidth);
             }
         }
 
