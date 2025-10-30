@@ -19,6 +19,7 @@ namespace BeAnal.Wpf
         private readonly AudioProcessor _audioProcessor;
         private Rectangle[] _barRectangles;
         private Rectangle[] _peakRectangles;
+        private readonly object _visualizerLock = new object();
         
         public MainWindow()
         {
@@ -86,7 +87,10 @@ namespace BeAnal.Wpf
                     case nameof(Settings.HighColor):
                     case nameof(Settings.PeakColor):
                         // This is an expensive operation, so only do it when you need to!
-                        UpdateVisualizerLayout();
+                        lock (_visualizerLock)
+                        {
+                            UpdateVisualizerLayout();    
+                        }
                         break;
                     case nameof(Settings.IsAlwaysOnTop):
                         UpdateWindowSettings();
@@ -97,56 +101,106 @@ namespace BeAnal.Wpf
         
         private void OnWindowSizeChanged(object sender, SizeChangedEventArgs e)
         {
-            // A resize doesn't require rebuilding the bars, only repositioning them.
-            // This is to safe call even during initiatization because of the null checks within
-            UpdateBarPositionsAndWidths();
+            lock (_visualizerLock)
+            {
+                // A resize doesn't require rebuilding the bars, only repositioning them.
+                // This is to safe call even during initiatization because of the null checks within
+                UpdateBarPositionsAndWidths();
+            }
         }
         private void OnProcessedDataAvailable(VisualizerData data)
         {
+            // DEBUG TEST 5: Is the UI thread receiving the event from the audio processor?
+            if (data.BarHeights.Length > 10)
+            {
+                System.Diagnostics.Debug.WriteLine($"UI: Received data. Bar 10 Height = {data.BarHeights[10]:F2}");
+            }
             Dispatcher.BeginInvoke(() =>
             {
-                // Safety check: if settings changed and the bar array is out of sync, abort the frame
-                if (_barRectangles.Length !=data.BarHeights.Length) return;
 
-                for (int i = 0; i < data.BarHeights.Length; i++)
+                lock (_visualizerLock)
                 {
-                    // Appply the final, pre-calculated bar height. no Math! FAST
-                    double barHeight = (data.BarHeights[i] / 100.0) * SpectrumCanvas.ActualHeight;
-                    _barRectangles[i].Height = Math.Max(0, barHeight);
+                    // CHANGE: Modified the loop condition to be more robust.
+                    // Instead of an exact length check, this now iterates through the minimum of the two collections.
+                    // This prevents an IndexOutOfRangeException and stops the visual freeze if the arrays are
+                    // temporarily out of sync during a rapid slider change.
 
-                    double peakPosition = (data.PeakLevels[i] / 100.0) * SpectrumCanvas.ActualHeight;
-                    // Ensure that the peak indicator is at least its own height from the top
-                    double finalPeakPosition = Math.Max(0, peakPosition - _peakRectangles[i].Height);
-                    Canvas.SetBottom(_peakRectangles[i], finalPeakPosition);
+                    int barsToRender = Math.Min(_barRectangles.Length, data.BarHeights.Length);
 
+                    // DEBUG TEST 6: Is the UI drawing loop running?
+                    if (barsToRender > 10)
+                    {
+                        double finalPixelHeight = (data.BarHeights[10] / 100.0) * SpectrumCanvas.ActualHeight;
+                        System.Diagnostics.Debug.WriteLine($"UI: Drawing Bar 10 with final pixel height: {finalPixelHeight:F2} (CanvasHeight: {SpectrumCanvas.ActualHeight})");
+                    }
+
+                    for (int i = 0; i < barsToRender; i++)
+                    {
+                        // Appply the final, pre-calculated bar height. no Math! FAST
+                        double barHeight = (data.BarHeights[i] / 100.0) * SpectrumCanvas.ActualHeight;
+                        _barRectangles[i].Height = Math.Max(0, barHeight);
+
+                        double peakPosition = (data.PeakLevels[i] / 100.0) * SpectrumCanvas.ActualHeight;
+                        // Ensure that the peak indicator is at least its own height from the top
+                        double finalPeakPosition = Math.Max(0, peakPosition - _peakRectangles[i].Height);
+                        Canvas.SetBottom(_peakRectangles[i], finalPeakPosition);
+                    }
                 }
             });
         }
-                
+
+        /// <summary>
+        ///  This code must be called from a lock
+        /// </summary>
         private void UpdateVisualizerLayout()
         {
-            // 1. Clear the old bars from the canvas
-            SpectrumCanvas.Children.Clear();
+            int newNumberOfBars = _settings.NumberOfBars;
+            int oldNumberOfBars = _barRectangles.Length;
 
-            // 2. Create our bar and peak rectangles
-            _barRectangles = new Rectangle[_settings.NumberOfBars];
-            _peakRectangles = new Rectangle[_settings.NumberOfBars];
-            
-            // 3. Re-run the setup logic with the new settings
-            for (int i = 0; i < _settings.NumberOfBars; i++)
+            // If we needc more bars that we currently have
+            if (newNumberOfBars > oldNumberOfBars)
             {
-                var barRect = new Rectangle { Fill = CreateGradientBrush() };
-                Canvas.SetBottom(barRect, 0); // Anchor the bars to the bottom
-                _barRectangles[i] = barRect;
-                SpectrumCanvas.Children.Add(barRect);
+                // Resize the arrays to the new size
+                Array.Resize(ref _barRectangles, newNumberOfBars);
+                Array.Resize(ref _peakRectangles, newNumberOfBars);
 
-                var peakRect = new Rectangle
+                // Create and add noly the new rectangles
+                for (int i = oldNumberOfBars; i < newNumberOfBars; i++)
                 {
-                    Height = 2,
-                    Fill = new SolidColorBrush(_settings.PeakColor)
-                };
-                _peakRectangles[i] = peakRect;
-                SpectrumCanvas.Children.Add(peakRect);
+                    var barRect = new Rectangle { Fill = CreateGradientBrush() };
+                    Canvas.SetBottom(barRect, 0);
+                    _barRectangles[i] = barRect;
+                    SpectrumCanvas.Children.Add(barRect);
+
+                    var peakRect = new Rectangle
+                    {
+                        Height = 2,  // Peak Indicator height
+                        Fill = new SolidColorBrush(_settings.PeakColor)
+                    };
+                    _peakRectangles[i] = peakRect;
+                    SpectrumCanvas.Children.Add(peakRect);
+
+                }
+            }
+            else if (newNumberOfBars < oldNumberOfBars)
+            {
+                //Remove the excess rectanges from the canvas
+                for (int i = oldNumberOfBars - 1; i >= newNumberOfBars; i--)
+                {
+                    SpectrumCanvas.Children.Remove(_barRectangles[i]);
+                    SpectrumCanvas.Children.Remove(_peakRectangles[i]);
+                }
+                // Resize the arrays down to the new size
+                Array.Resize(ref _barRectangles, newNumberOfBars);
+                Array.Resize(ref _peakRectangles, newNumberOfBars);
+            }
+
+            // Update the colors for all the existing bars, in case the theme changed
+            for (int i = 0; i < newNumberOfBars; i++)
+            {
+                _barRectangles[i].Fill = CreateGradientBrush();
+                _peakRectangles[i].Fill = new SolidColorBrush(_settings.PeakColor);
+
             }
 
             // --- DIAGNOSTIC: Color the last bar blue ---
@@ -154,12 +208,15 @@ namespace BeAnal.Wpf
             {
                 _barRectangles[_settings.NumberOfBars - 1].Fill = Brushes.Blue;
             }
-            // --- END DIAGNOSTIC --- 
 
-            // After creating the bars, update their positions and widths
+            // After creating/removing bars, update their positions and widths
             UpdateBarPositionsAndWidths();
+
         }
 
+        /// <summary>
+        /// This code must be called from a lock
+        /// </summary>
         private void UpdateBarPositionsAndWidths()
         {
             // This method is the single source of truth for bar layout
@@ -170,13 +227,13 @@ namespace BeAnal.Wpf
             double barSpacing = 2.0;
 
             // Calculate the total width available for each bar slot
-            double totalSlotWidth = SpectrumCanvas.ActualWidth / _settings.NumberOfBars;
+            double totalSlotWidth = SpectrumCanvas.ActualWidth / _barRectangles.Length;
 
             // The actual width of the bar is the slot width minus the spacing
             //      Ensure itsr not less than zero
             double barwidth = Math.Max(0, totalSlotWidth - barSpacing);
 
-            for (int i = 0; i < _settings.NumberOfBars; i++)
+            for (int i = 0; i < _barRectangles.Length; i++)
             {
                 // Position each bar at the start of its slot. the empty space will be created by the 
                 //  reduced width

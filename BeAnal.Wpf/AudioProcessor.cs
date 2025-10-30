@@ -26,9 +26,10 @@ namespace BeAnal.Wpf
 
         private (int Start, int End)[] _barToBinMap;
         private double[] _lastBarHeights;
-        //private int _lastNumberOfBars = 0;
+        
         private float[] _monoSampleBuffer = new float[FFTSize]; // RMS Test buffer
-        private bool _rebuildBarMap = true;
+
+        private int _targetNumberOfBars = -1;
 
         private double[] _peakLevels;
         private double[] _peakHoldTimers;
@@ -46,6 +47,7 @@ namespace BeAnal.Wpf
             _peakLevels = new double[settings.NumberOfBars];
             _peakHoldTimers = new double[settings.NumberOfBars];
 
+            
             _settings.PropertyChanged += OnSettingsChanged;
         }
 
@@ -62,7 +64,8 @@ namespace BeAnal.Wpf
             // If a property that affects a bar layout changes, set the flag!
             if (e.PropertyName == nameof(Settings.NumberOfBars))
             {
-                _rebuildBarMap = true;
+                //Atomic write, its thread-safe <--- Battling race conditions between threads, are we???
+                _targetNumberOfBars = _settings.NumberOfBars;
             }
         }
 
@@ -98,7 +101,8 @@ namespace BeAnal.Wpf
 
                 // --- DIAGNOSTIC --- RMS validation
                 double rmsValue = CalculateRMS(_monoSampleBuffer);
-                System.Diagnostics.Debug.WriteLine($"RMS Amplitude: {rmsValue:F6}");
+                // DEBUG TEST 1: Is the audio buffer filling and are we triggering processing?
+                System.Diagnostics.Debug.WriteLine($"--- FFT BUFFER FULL --- RMS: {rmsValue:F6} ---");
                 // --- END DIAGNOSTIC --- RMS validation
 
                 _FFTBufferIndex = 0; // Reset for the next batch  
@@ -114,10 +118,23 @@ namespace BeAnal.Wpf
             double deltaTime = _frameTimer.Elapsed.TotalSeconds;
             _frameTimer.Restart();
 
-            if (_rebuildBarMap)
+            // Atomically read the target value of bins
+            int currentTarget = _targetNumberOfBars;
+
+            // If this is the first run, currentTarget is -1
+            if (currentTarget == -1)
             {
-                UpdateBarToBinMapping();
-                _rebuildBarMap = false;
+                //set the target to the default size (ie, 64)
+                currentTarget = _barToBinMap.Length;
+                //Sync the target so this block doesn't run again
+                _targetNumberOfBars = currentTarget;
+                //Force the initial map build
+                UpdateBarToBinMapping(currentTarget);
+            }
+            else if (currentTarget != _barToBinMap.Length && currentTarget > 0)
+            {
+                //Rebuild the map to the user's new target size
+                UpdateBarToBinMapping(currentTarget);
             }
 
             double[] FFTMagnitudes = new double[FFTSize / 2];
@@ -133,7 +150,11 @@ namespace BeAnal.Wpf
                 FFTMagnitudes[i] = ConvertToDB(correctedMagnitude);
             }
 
-            double[] finalBarHeights = new double[_settings.NumberOfBars];
+            double[] finalBarHeights = new double[_barToBinMap.Length];
+
+            // DEBUG TEST 2: Is the raw FFT data or dB conversion valid?
+            // Let's check a few bins. If these are 0.00, the problem is in the FFT or ConvertToDB.
+            System.Diagnostics.Debug.WriteLine($"AudioData: Raw Magnitudes (dB scaled) [10]={FFTMagnitudes[10]:F2} [50]={FFTMagnitudes[50]:F2} [100]={FFTMagnitudes[100]:F2}");
 
             // -- Calculate smoothing factors based on elapsed time
             // Avoid division by zer if the settings is 0 (by mistake)
@@ -144,7 +165,7 @@ namespace BeAnal.Wpf
             attackFactor = Math.Min(1.0, attackFactor);
             releaseFactor = Math.Min(1.0, releaseFactor);
 
-            for (int i = 0; i < _settings.NumberOfBars; i++)
+            for (int i = 0; i < _barToBinMap.Length; i++)
             {
                 var (startBin, endBin) = _barToBinMap[i];
 
@@ -169,6 +190,13 @@ namespace BeAnal.Wpf
                 double newHeight = (peakMagnitude > lastHeight)
                     ? lastHeight + (peakMagnitude - lastHeight) * attackFactor
                     : lastHeight + (peakMagnitude - lastHeight) * releaseFactor;
+
+                // DEBUG TEST 3: Is the smoothing logic working?
+                if (i == 10) // Just check bar 10
+                {
+                    System.Diagnostics.Debug.WriteLine($"AudioData: Bar 10 Smoothing: peakMag={peakMagnitude:F2}, lastHeight={lastHeight:F2}, newHeight={newHeight:F2}");
+                }
+
 
                 finalBarHeights[i] = newHeight;
                 _lastBarHeights[i] = newHeight;
@@ -200,36 +228,51 @@ namespace BeAnal.Wpf
                     }
                 }
 
-                if (_peakLevels[i] < currentBarHeight)
-                {
-                    _peakLevels[i] = currentBarHeight;
-                }
+                //if (_peakLevels[i] < currentBarHeight)
+                //{
+                //    _peakLevels[i] = currentBarHeight;
+                //}
             }
 
             ProcessedDataAvailable?.Invoke(new VisualizerData(finalBarHeights, _peakLevels));
         }
 
-        private void UpdateBarToBinMapping()
+        private void UpdateBarToBinMapping(int newNumberOfBars)
         {
-            Array.Resize(ref _barToBinMap, _settings.NumberOfBars);
-            Array.Resize(ref _lastBarHeights, _settings.NumberOfBars);
-            Array.Resize(ref _peakLevels, _settings.NumberOfBars);
-            Array.Resize(ref _peakHoldTimers, _settings.NumberOfBars);
+            int oldNumberOfBars = _barToBinMap.Length;
+
+            Array.Resize(ref _barToBinMap, newNumberOfBars);
+            Array.Resize(ref _lastBarHeights, newNumberOfBars);
+            Array.Resize(ref _peakLevels, newNumberOfBars);
+            Array.Resize(ref _peakHoldTimers, newNumberOfBars);
+
+            // if we've added new bars, initialize their last heights to 0 
+            // to prevent them from inheriting old values and spiking
+            if (newNumberOfBars > oldNumberOfBars)
+            {
+                for (int i = oldNumberOfBars; i < newNumberOfBars; i++)
+                {
+                    _lastBarHeights[i] = 0;
+                    _peakLevels[i] = 0;
+                    _peakHoldTimers[i] = 0;
+                }
+            }
 
             int maxFFTIndex = FFTSize / 2 - 1;
             double frequencyResolution = 48000 / FFTSize;
             const double linearRatio = 0.4;
-            int linearBarCount = (int)(_settings.NumberOfBars * linearRatio);
+            int linearBarCount = (int)(newNumberOfBars * linearRatio);
             int lastLinearBin = 0;
+            
             for (int i = 0; i < linearBarCount; i++)
             {
                 _barToBinMap[i] = (i + 1, i + 2);
                 lastLinearBin = i + 2;
             }
 
-            if (_settings.NumberOfBars > linearBarCount)
+            if (newNumberOfBars > linearBarCount)
             {
-                int logBarCount = _settings.NumberOfBars - linearBarCount;
+                int logBarCount = newNumberOfBars - linearBarCount;
                 double minLogFreq = lastLinearBin * frequencyResolution;
                 double maxLogFreq = 20000; // We are setting the max frequency. only dogs are hearing up there, anyway.
 
@@ -252,17 +295,18 @@ namespace BeAnal.Wpf
             }
 
 #if DEBUG
-            Console.WriteLine("--- Lin-Log Hybrid Mapping ---");
+            System.Diagnostics.Debug.WriteLine("--- Lin-Log Hybrid Mapping ---");
 
-            for (int i = 0; i < _settings.NumberOfBars; i++)
+            for (int i = 0; i < newNumberOfBars; i++)
             {
+                if (i >= _barToBinMap.Length) break; // Safety check
                 var (startBin, endBin) = _barToBinMap[i];
                 double startFreq = startBin * frequencyResolution;
                 double endFreq = endBin * frequencyResolution;
 
-                Console.WriteLine($"Bar {i,3}: Bins {startBin,3}-{endBin,3} (~{startFreq,5:F0} - {endFreq,5:F0} Hz)");
+                System.Diagnostics.Debug.WriteLine($"Bar {i,3}: Bins {startBin,3}-{endBin,3} (~{startFreq,5:F0} - {endFreq,5:F0} Hz)");
             }
-            Console.WriteLine("--- End of Mapping ---");
+            System.Diagnostics.Debug.WriteLine("--- End of Mapping ---");
 #endif
         }
 

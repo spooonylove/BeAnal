@@ -1,8 +1,11 @@
 
 # Punch-List
+## 0. Bug Handling
+- [ ] When dragging bar slider up and down, peak detection maxes
+- [ ] When dragging bar slider up and down, occasionally all primary bar visualization fails.
 ## 1. Configurability. 
 - [ ] add segments up the bar rectangles, replicating LEDs or other dot-style representations, user adjustable
-- [ ] Attack/Release controls into settings
+- [x] Attack/Release controls into settings
 - [x] Settings saved each time executed
 - [ ] FPS overlay (settings controled)
 ## 2. Code methodolgy
