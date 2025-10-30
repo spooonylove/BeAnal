@@ -5,6 +5,7 @@ using System.Windows.Media.Animation;
 using System.Drawing;
 using System.Windows.Documents;
 using System.ComponentModel;
+using System.Diagnostics;
 
 
 namespace BeAnal.Wpf
@@ -32,6 +33,8 @@ namespace BeAnal.Wpf
         private double[] _peakLevels;
         private int[] _peakHoldCounters;
 
+        private readonly Stopwatch _frameTimer = new Stopwatch();
+
 
         public AudioProcessor(Settings settings)
         {
@@ -50,6 +53,7 @@ namespace BeAnal.Wpf
             _capture = new WasapiLoopbackCapture();
             _capture.DataAvailable += OnDataAvailable;
             _capture.StartRecording();
+            _frameTimer.Start();
         }
 
         private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
@@ -104,6 +108,11 @@ namespace BeAnal.Wpf
 
         private void ProcessFFTData()
         {
+            // -- Freeze the timer, grab the time, measure time since last frame --
+            _frameTimer.Stop();
+            double deltaTime = _frameTimer.Elapsed.TotalSeconds;
+            _frameTimer.Restart();
+
             if (_rebuildBarMap)
             {
                 UpdateBarToBinMapping();
@@ -124,8 +133,15 @@ namespace BeAnal.Wpf
             }
 
             double[] finalBarHeights = new double[_settings.NumberOfBars];
-            double attack = 0.4;
-            double release = 0.1;
+
+            // -- Calculate smoothing factors based on elapsed time
+            // Avoid division by zer if the settings is 0 (by mistake)
+            double attackFactor = (_settings.BarAttackTime > 0) ? deltaTime / (_settings.BarAttackTime / 1000.0) : 1.0;
+            double releaseFactor = (_settings.BarReleaseTime > 0) ? deltaTime / (_settings.BarReleaseTime / 1000.0) : 1.0;
+
+            // Clamp the factors to a mxax of 1.0 to prevent overshooting (can we say LAGGGG)
+            attackFactor = Math.Min(1.0, attackFactor);
+            releaseFactor = Math.Min(1.0, releaseFactor);
 
             for (int i = 0; i < _settings.NumberOfBars; i++)
             {
@@ -150,8 +166,8 @@ namespace BeAnal.Wpf
                 // scaling factor.
                 double lastHeight = _lastBarHeights[i];
                 double newHeight = (peakMagnitude > lastHeight)
-                    ? (peakMagnitude * attack) + (lastHeight * (1 - attack))
-                    : (peakMagnitude * release) + (lastHeight * (1 - release));
+                    ? lastHeight + (peakMagnitude - lastHeight) * attackFactor
+                    : lastHeight + (peakMagnitude - lastHeight) * releaseFactor;
 
                 finalBarHeights[i] = newHeight;
                 _lastBarHeights[i] = newHeight;

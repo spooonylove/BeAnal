@@ -193,7 +193,7 @@ namespace BeAnal.Wpf
 
         private Brush CreateGradientBrush()
         {
-            return new LinearGradientBrush(_settings.LowColor, _settings.HighColor, 90);
+            return new LinearGradientBrush(_settings.HighColor, _settings.LowColor, 90);
         }
 
         private void Settings_Click(object sender, RoutedEventArgs e)

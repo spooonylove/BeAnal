@@ -6,63 +6,82 @@
         xmlns:local="clr-namespace:BeAnal.Wpf"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         mc:Ignorable="d"
-        Title="Settings" Height="450" Width="400"
+        Title="Settings" Height="550" Width="400"
         WindowStyle="ToolWindow" ResizeMode="NoResize">
     <Grid Margin="10">
-        <StackPanel>
+        <ScrollViewer VerticalScrollBarVisibility="Auto">
+            <StackPanel>
 
-            <GroupBox Header="General Settings">
-                <StackPanel Margin="5">
-                    <CheckBox x:Name="AlwaysOnTopCheckBox" Content="Always on Top" IsChecked="{Binding IsAlwaysOnTop, Mode=TwoWay}" />
-                </StackPanel>
-            </GroupBox>
-
-            <GroupBox Header="Visualizer Settings">
-                <StackPanel Margin="5">
-                    <TextBlock Text="Number of Bars:" />
-                    <Slider x:Name="NumberOfBarsSlider" Minimum="10" Maximum="512" Value="{Binding NumberOfBars, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" />
-                    <TextBlock Text="{Binding Value, ElementName=NumberOfBarsSlider, StringFormat={}{0:F0}}" HorizontalAlignment="Center" />
-
-                    <TextBlock Text="Sensitivity:" Margin="0,10,0,0" />
-                    <Slider x:Name="SensitivitySlider" Minimum="0.1" Maximum="10.0" Value="{Binding Sensitivity, Mode=TwoWay}" />
-                    <TextBlock Text="{Binding Value, ElementName=SensitivitySlider, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
-                </StackPanel>
-            </GroupBox>
-            
-            <GroupBox Header="Peak Settings">
-                <StackPanel Margin="5">
-                    <TextBlock Text="Peak Hold Time (Frames):" />
-                    <Slider x:Name="PeakHoldTimeSlider" Minimum="0" Maximum="100" Value="{Binding PeakHoldTime, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" />
-                    <TextBlock Text="{Binding Value, ElementName=PeakHoldTimeSlider, StringFormat={}{0:F0}}" HorizontalAlignment="Center"/>
-
-                    <TextBlock Text="Peak Decay Rate:" Margin="0,10,0,0"/>
-                    <Slider x:Name="PeakDecayRateSlider" Minimum="0.1" Maximum="2.0" Value="{Binding PeakDecayRate, Mode=TwoWay}" TickFrequency="0.01"/>
-                    <TextBlock Text="{Binding Value, ElementName=PeakDecayRateSlider, StringFormat={}{0:F2}}" HorizontalAlignment="Center"/>
-                </StackPanel>
-            </GroupBox>
-
-            <GroupBox Header="Color Settings">
-                <Grid Margin="5">
-                    <Grid.ColumnDefinitions>
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                        <ColumnDefinition Width="*" />
-                    </Grid.ColumnDefinitions>
-                    <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                        <TextBlock Text="Low Color" HorizontalAlignment="Center"/>
-                        <xctk:ColorPicker SelectedColor="{Binding LowColor, Mode=TwoWay}" />
+                <GroupBox Header="General Settings">
+                    <StackPanel Margin="5">
+                        <CheckBox x:Name="AlwaysOnTopCheckBox" Content="Always on Top" IsChecked="{Binding IsAlwaysOnTop, Mode=TwoWay}" />
                     </StackPanel>
-                    <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                        <TextBlock Text="High Color" HorizontalAlignment="Center"/>
-                        <xctk:ColorPicker SelectedColor="{Binding HighColor, Mode=TwoWay}" />
-                    </StackPanel>
-                    <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                        <TextBlock Text="Peak Color" HorizontalAlignment="Center"/>
-                        <xctk:ColorPicker SelectedColor="{Binding PeakColor, Mode=TwoWay}" />
-                    </StackPanel>
-                </Grid>
-            </GroupBox>
+                </GroupBox>
 
-        </StackPanel>
+                <GroupBox Header="Visualizer Settings">
+                    <StackPanel Margin="5">
+                        <TextBlock Text="Number of Bars:" />
+                        <Slider x:Name="NumberOfBarsSlider" Minimum="10" Maximum="512" Value="{Binding NumberOfBars, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" />
+                        <TextBlock Text="{Binding Value, ElementName=NumberOfBarsSlider, StringFormat={}{0:F0}}" HorizontalAlignment="Center" />
+
+                        <TextBlock Text="Sensitivity:" Margin="0,10,0,0" />
+                        <Slider x:Name="SensitivitySlider" Minimum="0.1" Maximum="10.0" Value="{Binding Sensitivity, Mode=TwoWay}" />
+                        <TextBlock Text="{Binding Value, ElementName=SensitivitySlider, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </GroupBox>
+                
+                <GroupBox Header="Smoothing Settings">
+                    <StackPanel Margin="5">
+                        <TextBlock Text="Bar Attack (ms):" />
+                        <Slider x:Name="BarAttackSlider" Minimum="1" Maximum="500" Value="{Binding BarAttackTime, Mode=TwoWay}" IsSnapToTickEnabled="True" TickFrequency="1" />
+                        <TextBlock Text="{Binding Value, ElementName=BarAttackSlider, StringFormat={}{0:F0} ms}" HorizontalAlignment="Center" />
+
+                        <TextBlock Text="Bar Release (ms):" Margin="0,10,0,0"/>
+                        <Slider x:Name="BarReleaseSlider" Minimum="1" Maximum="1000" Value="{Binding BarReleaseTime, Mode=TwoWay}" IsSnapToTickEnabled="True" TickFrequency="1" />
+                        <TextBlock Text="{Binding Value, ElementName=BarReleaseSlider, StringFormat={}{0:F0} ms}" HorizontalAlignment="Center" />
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Peak Settings">
+                    <StackPanel Margin="5">
+                        <TextBlock Text="Peak Hold Time (Frames):" />
+                        <Slider x:Name="PeakHoldTimeSlider" Minimum="0" Maximum="100" Value="{Binding PeakHoldTime, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" />
+                        <TextBlock Text="{Binding Value, ElementName=PeakHoldTimeSlider, StringFormat={}{0:F0}}" HorizontalAlignment="Center"/>
+
+                        <TextBlock Text="Peak Decay Rate:" Margin="0,10,0,0"/>
+                        <Slider x:Name="PeakDecayRateSlider" Minimum="0.1" Maximum="2.0" Value="{Binding PeakDecayRate, Mode=TwoWay}" TickFrequency="0.01"/>
+                        <TextBlock Text="{Binding Value, ElementName=PeakDecayRateSlider, StringFormat={}{0:F2}}" HorizontalAlignment="Center"/>
+                    </StackPanel>
+                </GroupBox>
+
+                <GroupBox Header="Color Settings">
+                    <StackPanel>
+                        <TextBlock Text="Color Scheme:" Margin="5,5,5,0"/>
+                        <ComboBox x:Name="ColorSchemeComboBox" Margin="5" SelectionChanged="ColorSchemeComboBox_SelectionChanged"/>
+
+                        <Grid Margin="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                <TextBlock Text="Low Color" HorizontalAlignment="Center"/>
+                                <xctk:ColorPicker SelectedColor="{Binding LowColor, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                <TextBlock Text="High Color" HorizontalAlignment="Center"/>
+                                <xctk:ColorPicker SelectedColor="{Binding HighColor, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                <TextBlock Text="Peak Color" HorizontalAlignment="Center"/>
+                                <xctk:ColorPicker SelectedColor="{Binding PeakColor, Mode=TwoWay}" />
+                            </StackPanel>
+                        </Grid>
+                    </StackPanel>
+                </GroupBox>
+
+            </StackPanel>
+        </ScrollViewer>
     </Grid>
 </Window>

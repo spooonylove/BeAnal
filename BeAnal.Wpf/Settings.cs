@@ -10,11 +10,15 @@ namespace BeAnal.Wpf
         private int _numberOfBars = 64;
         private double _sensitivity = 1.0;
         private bool _isAlwaysOnTop = true;
-        private Color _lowColor = Colors.Blue;
-        private Color _highColor = Colors.Red;
+        private Color _lowColor = Colors.Yellow;
+        private Color _highColor = Colors.Tomato;
         private int _peakHoldTime = 10;
         private double _peakDecayRate = 0.2;
-        private Color _peakColor = Colors.Red;
+        private Color _peakColor = Colors.GhostWhite;
+
+        // Time-based smoothing properties
+        private int _barAttackTime = 50;  //Time in Milliseconds
+        private int _barReleaseTime = 300; //Time in Milliseconds
 
         //Window Properties
         private double _windowHeight = 450;
@@ -71,6 +75,19 @@ namespace BeAnal.Wpf
             set { if (_peakColor != value) { _peakColor = value; OnPropertyChanged(); } }
         }
 
+        public int BarAttackTime
+        {
+            get => _barAttackTime;
+            set { if (_barAttackTime != value) { _barAttackTime = value; OnPropertyChanged(); } }
+        }
+
+        public int BarReleaseTime
+        {
+            get => _barReleaseTime;
+            set { if (_barReleaseTime != value) { _barReleaseTime = value; OnPropertyChanged(); } }
+        }
+
+        // --- Windows Property Accessors
         public double WindowHeight
         {
             get => _windowHeight;
