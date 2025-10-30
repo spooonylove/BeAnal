@@ -4,17 +4,44 @@
         xmlns:d="http://schemas.microsoft.com/expression/blend/2008"
         xmlns:mc="http://schemas.openxmlformats.org/markup-compatibility/2006"
         xmlns:local="clr-namespace:BeAnal.Wpf"
+        xmlns:sys="clr-namespace:System;assembly=mscorlib"
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         mc:Ignorable="d"
-        Title="Settings" Height="550" Width="400"
+        Title="Settings" Height="500" Width="400"
         WindowStyle="ToolWindow" ResizeMode="NoResize">
-    <Grid Margin="10">
-        <ScrollViewer VerticalScrollBarVisibility="Auto">
+    
+    <Window.Resources>
+        <sys:Double x:Key="{x:Static SystemParameters.VerticalScrollBarWidthKey}">8</sys:Double>
+    </Window.Resources>
+    
+    <ScrollViewer VerticalScrollBarVisibility="Auto" HorizontalScrollBarVisibility="Disabled">
+        <Grid Margin="10">
             <StackPanel>
 
-                <GroupBox Header="General Settings">
-                    <StackPanel Margin="5">
-                        <CheckBox x:Name="AlwaysOnTopCheckBox" Content="Always on Top" IsChecked="{Binding IsAlwaysOnTop, Mode=TwoWay}" />
+                <GroupBox Header="Color Settings">
+                    <StackPanel>
+                        <TextBlock Text="Color Scheme:" Margin="5,5,5,0"/>
+                        <ComboBox x:Name="ColorSchemeComboBox" Margin="5" SelectionChanged="ColorSchemeComboBox_SelectionChanged"/>
+
+                        <Grid Margin="5">
+                            <Grid.ColumnDefinitions>
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                                <ColumnDefinition Width="*" />
+                            </Grid.ColumnDefinitions>
+                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
+                                <TextBlock Text="Low Color" HorizontalAlignment="Center"/>
+                                <xctk:ColorPicker SelectedColor="{Binding LowColor, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
+                                <TextBlock Text="High Color" HorizontalAlignment="Center"/>
+                                <xctk:ColorPicker SelectedColor="{Binding HighColor, Mode=TwoWay}" />
+                            </StackPanel>
+                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
+                                <TextBlock Text="Peak Color" HorizontalAlignment="Center"/>
+                                <xctk:ColorPicker SelectedColor="{Binding PeakColor, Mode=TwoWay}" />
+                            </StackPanel>
+                        </Grid>
                     </StackPanel>
                 </GroupBox>
 
@@ -54,34 +81,13 @@
                     </StackPanel>
                 </GroupBox>
 
-                <GroupBox Header="Color Settings">
-                    <StackPanel>
-                        <TextBlock Text="Color Scheme:" Margin="5,5,5,0"/>
-                        <ComboBox x:Name="ColorSchemeComboBox" Margin="5" SelectionChanged="ColorSchemeComboBox_SelectionChanged"/>
-
-                        <Grid Margin="5">
-                            <Grid.ColumnDefinitions>
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                                <ColumnDefinition Width="*" />
-                            </Grid.ColumnDefinitions>
-                            <StackPanel Grid.Column="0" HorizontalAlignment="Center">
-                                <TextBlock Text="Low Color" HorizontalAlignment="Center"/>
-                                <xctk:ColorPicker SelectedColor="{Binding LowColor, Mode=TwoWay}" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="1" HorizontalAlignment="Center">
-                                <TextBlock Text="High Color" HorizontalAlignment="Center"/>
-                                <xctk:ColorPicker SelectedColor="{Binding HighColor, Mode=TwoWay}" />
-                            </StackPanel>
-                            <StackPanel Grid.Column="2" HorizontalAlignment="Center">
-                                <TextBlock Text="Peak Color" HorizontalAlignment="Center"/>
-                                <xctk:ColorPicker SelectedColor="{Binding PeakColor, Mode=TwoWay}" />
-                            </StackPanel>
-                        </Grid>
+                <GroupBox Header="General Settings">
+                    <StackPanel Margin="5">
+                        <CheckBox x:Name="AlwaysOnTopCheckBox" Content="Always on Top" IsChecked="{Binding IsAlwaysOnTop, Mode=TwoWay}" />
                     </StackPanel>
                 </GroupBox>
 
             </StackPanel>
-        </ScrollViewer>
-    </Grid>
+        </Grid>
+    </ScrollViewer>
 </Window>
