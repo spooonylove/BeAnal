@@ -215,12 +215,6 @@ namespace BeAnal.Wpf
 
             }
 
-            // --- DIAGNOSTIC: Color the last bar blue ---
-            if (_barRectangles.Length > 0)
-            {
-                _barRectangles[_settings.NumberOfBars - 1].Fill = Brushes.Blue;
-            }
-
             // After creating/removing bars, update their positions and widths
             UpdateBarPositionsAndWidths();
 
