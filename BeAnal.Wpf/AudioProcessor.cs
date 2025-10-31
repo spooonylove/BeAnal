@@ -101,10 +101,7 @@ namespace BeAnal.Wpf
 
                 // --- DIAGNOSTIC --- RMS validation
                 double rmsValue = CalculateRMS(_monoSampleBuffer);
-                // DEBUG TEST 1: Is the audio buffer filling and are we triggering processing?
-                System.Diagnostics.Debug.WriteLine($"--- FFT BUFFER FULL --- RMS: {rmsValue:F6} ---");
-                // --- END DIAGNOSTIC --- RMS validation
-
+                
                 _FFTBufferIndex = 0; // Reset for the next batch  
                 FastFourierTransform.FFT(true, (int)Math.Log(FFTSize, 2.0), _FFTBuffer);
                 ProcessFFTData();
@@ -152,12 +149,9 @@ namespace BeAnal.Wpf
 
             double[] finalBarHeights = new double[_barToBinMap.Length];
 
-            // DEBUG TEST 2: Is the raw FFT data or dB conversion valid?
-            // Let's check a few bins. If these are 0.00, the problem is in the FFT or ConvertToDB.
-            System.Diagnostics.Debug.WriteLine($"AudioData: Raw Magnitudes (dB scaled) [10]={FFTMagnitudes[10]:F2} [50]={FFTMagnitudes[50]:F2} [100]={FFTMagnitudes[100]:F2}");
-
+            
             // -- Calculate smoothing factors based on elapsed time
-            // Avoid division by zer if the settings is 0 (by mistake)
+            // Avoid division by zero if the settings is 0 (by mistake)
             double attackFactor = (_settings.BarAttackTimeMs > 0) ? deltaTime / (_settings.BarAttackTimeMs / 1000.0) : 1.0;
             double releaseFactor = (_settings.BarReleaseTimeMs > 0) ? deltaTime / (_settings.BarReleaseTimeMs / 1000.0) : 1.0;
 
@@ -191,13 +185,6 @@ namespace BeAnal.Wpf
                     ? lastHeight + (peakMagnitude - lastHeight) * attackFactor
                     : lastHeight + (peakMagnitude - lastHeight) * releaseFactor;
 
-                // DEBUG TEST 3: Is the smoothing logic working?
-                if (i == 10) // Just check bar 10
-                {
-                    System.Diagnostics.Debug.WriteLine($"AudioData: Bar 10 Smoothing: peakMag={peakMagnitude:F2}, lastHeight={lastHeight:F2}, newHeight={newHeight:F2}");
-                }
-
-
                 finalBarHeights[i] = newHeight;
                 _lastBarHeights[i] = newHeight;
             }
@@ -228,10 +215,6 @@ namespace BeAnal.Wpf
                     }
                 }
 
-                //if (_peakLevels[i] < currentBarHeight)
-                //{
-                //    _peakLevels[i] = currentBarHeight;
-                //}
             }
 
             ProcessedDataAvailable?.Invoke(new VisualizerData(finalBarHeights, _peakLevels));
@@ -260,10 +243,12 @@ namespace BeAnal.Wpf
 
             int maxFFTIndex = FFTSize / 2 - 1;
             double frequencyResolution = 48000 / FFTSize;
-            const double linearRatio = 0.4;
+
+            const double linearRatio = 0.4; // this determines the knee at which we switch from linear to log
+
             int linearBarCount = (int)(newNumberOfBars * linearRatio);
             int lastLinearBin = 0;
-            
+
             for (int i = 0; i < linearBarCount; i++)
             {
                 _barToBinMap[i] = (i + 1, i + 2);

@@ -75,7 +75,7 @@ namespace BeAnal.Wpf
 
         private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
         {
-            // THis event handler is the central point for reacting to settings changes.
+            // This event handler is the central point for reacting to settings changes.
             // Using a switch ensure that we only update  whats necessary
             Dispatcher.Invoke(() =>
             {
@@ -124,11 +124,7 @@ namespace BeAnal.Wpf
         }
         private void OnProcessedDataAvailable(VisualizerData data)
         {
-            // DEBUG TEST 5: Is the UI thread receiving the event from the audio processor?
-            if (data.BarHeights.Length > 10)
-            {
-                System.Diagnostics.Debug.WriteLine($"UI: Received data. Bar 10 Height = {data.BarHeights[10]:F2}");
-            }
+            
             Dispatcher.BeginInvoke(() =>
             {
 
@@ -141,13 +137,7 @@ namespace BeAnal.Wpf
 
                     int barsToRender = Math.Min(_barRectangles.Length, data.BarHeights.Length);
 
-                    // DEBUG TEST 6: Is the UI drawing loop running?
-                    if (barsToRender > 10)
-                    {
-                        double finalPixelHeight = (data.BarHeights[10] / 100.0) * SpectrumCanvas.ActualHeight;
-                        System.Diagnostics.Debug.WriteLine($"UI: Drawing Bar 10 with final pixel height: {finalPixelHeight:F2} (CanvasHeight: {SpectrumCanvas.ActualHeight})");
-                    }
-
+                   
                     for (int i = 0; i < barsToRender; i++)
                     {
                         // Appply the final, pre-calculated bar height. no Math! FAST
