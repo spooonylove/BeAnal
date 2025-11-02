@@ -105,6 +105,7 @@ namespace BeAnal.Wpf
                     case nameof(Settings.HighColor):
                     case nameof(Settings.PeakColor):
                     case nameof(Settings.BarOpacity):
+                    case nameof(Settings.InvertBars):
                         // This is an expensive operation, so only do it when you need to!
                         lock (_visualizerLock)
                         {
@@ -152,10 +153,19 @@ namespace BeAnal.Wpf
                         double barHeight = (data.BarHeights[i] / 100.0) * SpectrumCanvas.ActualHeight;
                         _barRectangles[i].Height = Math.Max(0, barHeight);
 
-                        double peakPosition = (data.PeakLevels[i] / 100.0) * SpectrumCanvas.ActualHeight;
-                        // Ensure that the peak indicator is at least its own height from the top
-                        double finalPeakPosition = Math.Max(0, peakPosition - _peakRectangles[i].Height);
-                        Canvas.SetBottom(_peakRectangles[i], finalPeakPosition);
+                        double peakHeightPx = (data.PeakLevels[i] / 100.0) * SpectrumCanvas.ActualHeight;
+                        if (_settings.InvertBars)
+                        {
+                            // Inverted: Anchor peak to the TOP of the canvas
+                            double finalPeakPosition = Math.Max(0, peakHeightPx - _peakRectangles[i].Height);
+                            Canvas.SetTop(_peakRectangles[i], finalPeakPosition);
+                        }
+                        else
+                        {
+                            // Standard: Anchor peak to the BOTTOM of the canvas
+                            double finalPeakPosition = Math.Max(0, peakHeightPx - _peakRectangles[i].Height);
+                            Canvas.SetBottom(_peakRectangles[i], finalPeakPosition);    
+                        }
                     }
                 }
             });
@@ -185,7 +195,11 @@ namespace BeAnal.Wpf
                         Opacity = _settings.BarOpacity
                     };
 
-                    Canvas.SetBottom(barRect, 0);
+                    if (_settings.InvertBars)
+                        Canvas.SetTop(barRect, 0);
+                    else
+                        Canvas.SetBottom(barRect, 0);
+                    
                     _barRectangles[i] = barRect;
                     SpectrumCanvas.Children.Add(barRect);
 
@@ -195,6 +209,11 @@ namespace BeAnal.Wpf
                         Fill = new SolidColorBrush(_settings.PeakColor),
                         Opacity = _settings.BarOpacity
                     };
+
+                    if (_settings.InvertBars)
+                        Canvas.SetTop(peakRect, 0);
+                    else
+                        Canvas.SetBottom(peakRect, 0);
                     _peakRectangles[i] = peakRect;
                     SpectrumCanvas.Children.Add(peakRect);
 
@@ -220,6 +239,24 @@ namespace BeAnal.Wpf
                 _barRectangles[i].Opacity = _settings.BarOpacity;
                 _peakRectangles[i].Fill = new SolidColorBrush(_settings.PeakColor);
                 _peakRectangles[i].Opacity = _settings.BarOpacity;
+
+                // Clear out all anchors current stored in the canvas
+                // double.NaN (Not A Number) is a special value used to clear an attached property
+                Canvas.SetTop(_barRectangles[i], double.NaN);
+                Canvas.SetBottom(_barRectangles[i], double.NaN);
+                Canvas.SetTop(_peakRectangles[i], double.NaN);
+                Canvas.SetBottom(_peakRectangles[i], double.NaN);
+
+                if (_settings.InvertBars)
+                {
+                    Canvas.SetTop(_barRectangles[i], 0);
+                    Canvas.SetTop(_peakRectangles[i], 0);
+                }
+                else
+                {
+                    Canvas.SetBottom(_barRectangles[i], 0);
+                    Canvas.SetBottom(_peakRectangles[i], 0);
+                }
 
             }
 

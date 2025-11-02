@@ -25,6 +25,9 @@ namespace BeAnal.Wpf
         private double _backgroundOpacity = 1.0;
         private double _barOpacity = 1.0;
 
+        // Visualization Settings
+        private bool _invertBars = false;
+
         //Window Properties
         private double _windowHeight = 450;
         private double _windowWidth = 800;
@@ -105,6 +108,12 @@ namespace BeAnal.Wpf
         {
             get => _barOpacity;
             set { if (_barOpacity != value) { _barOpacity = value; OnPropertyChanged(); } }
+        }
+
+        public bool InvertBars
+        {
+            get => _invertBars;
+            set { if (_invertBars != value) { _invertBars = value;  OnPropertyChanged(); }}
         }
 
         // --- Windows Property Accessors
