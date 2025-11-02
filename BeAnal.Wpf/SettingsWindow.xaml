@@ -8,12 +8,17 @@
         xmlns:xctk="http://schemas.xceed.com/wpf/xaml/toolkit"
         mc:Ignorable="d"
         Title="Settings" Height="500" Width="400"
-        WindowStyle="ToolWindow" ResizeMode="NoResize"
-        Loaded="SettingsWindow_Loaded">
+        WindowStyle="ToolWindow" ResizeMode="NoResize">
     
     <!-- No more ScrollViewer! -->
     <Grid Margin="10">
-        <TabControl>
+        <!-- Added RowDefinitions to make space for the button -->
+        <Grid.RowDefinitions>
+            <RowDefinition Height="*" />
+            <RowDefinition Height="Auto" />
+        </Grid.RowDefinitions>
+        
+        <TabControl Grid.Row="0">
             
             <!-- GENERAL TAB -->
             <TabItem Header="General">
@@ -74,14 +79,15 @@
                             <TextBlock Text="Number of Bars:" />
                             <Slider x:Name="NumberOfBarsSlider" Minimum="10" Maximum="512" Value="{Binding NumberOfBars, Mode=TwoWay}" TickFrequency="1" IsSnapToTickEnabled="True" />
                             <TextBlock Text="{Binding Value, ElementName=NumberOfBarsSlider, StringFormat={}{0:F0}}" HorizontalAlignment="Center" />
-                           
                             <TextBlock Text="Sensitivity:" Margin="0,10,0,0" />
                             <Slider x:Name="SensitivitySlider" Minimum="0.1" Maximum="10.0" Value="{Binding Sensitivity, Mode=TwoWay}" />
                             <TextBlock Text="{Binding Value, ElementName=SensitivitySlider, StringFormat={}{0:F1}}" HorizontalAlignment="Center" />
                             
-                            <CheckBox Content="Invert Bars (Draw from Top)" 
+                            <!-- Added InvertBars CheckBox -->
+                            <CheckBox x:Name="InvertBarsCheckBox" 
+                                      Content="Invert Bars (Top-Down)" 
                                       IsChecked="{Binding InvertBars, Mode=TwoWay}" 
-                                      Margin="0,15,0,0" />
+                                      Margin="0,15,0,0"/>
                         </StackPanel>
                     </GroupBox>
                 </StackPanel>
@@ -125,5 +131,15 @@
             </TabItem>
             
         </TabControl>
+        
+        <!-- Added the Reset button at the bottom -->
+        <Button Grid.Row="1" 
+                x:Name="ResetButton" 
+                Content="Reset to Defaults" 
+                Click="ResetButton_Click" 
+                HorizontalAlignment="Right" 
+                Margin="0,10,0,0"
+                Padding="10,5"/>
     </Grid>
 </Window>
+

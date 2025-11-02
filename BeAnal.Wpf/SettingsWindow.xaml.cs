@@ -118,7 +118,7 @@ namespace BeAnal.Wpf
             _settings.PropertyChanged += OnSettingsPropertyChanged;
 
         }
-        
+
         private void OnSettingsPropertyChanged(object? sender, PropertyChangedEventArgs e)
         {
             // If the color was changed manually via a ColorPicker, 
@@ -137,6 +137,12 @@ namespace BeAnal.Wpf
             }
 
 
+        }
+        
+        // Reset button Event Handler
+        private void ResetButton_Click(object sender, RoutedEventArgs e)
+        {
+            _settings.ResetToDefault();
         }
     }
 }
