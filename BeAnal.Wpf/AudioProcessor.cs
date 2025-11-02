@@ -1,24 +1,26 @@
 using NAudio.Wave;
 using NAudio.Dsp;
 using System;
-using System.Windows.Media.Animation;
-using System.Drawing;
-using System.Windows.Documents;
 using System.ComponentModel;
 using System.Diagnostics;
+using System.Windows;
 
 
 namespace BeAnal.Wpf
 {
+
+    /// <summary>
+    /// Platform-agnostic audio processing class.
+    /// Receives raw audio samples from an IAudioCaptureService and performs
+    /// FFT, smoothing, and peak detection.
+    /// </summary>
     public class AudioProcessor : IDisposable
     {
-
-
         public event Action<VisualizerData>? ProcessedDataAvailable;
         public const int FFTSize = 1024;
 
         private readonly Settings _settings;
-        private WasapiLoopbackCapture? _capture;
+        private readonly IAudioCaptureService _captureService;
 
         private int _FFTBufferIndex = 0;
         private Complex[] _FFTBuffer = new Complex[FFTSize];
@@ -27,7 +29,7 @@ namespace BeAnal.Wpf
         private (int Start, int End)[] _barToBinMap;
         private double[] _lastBarHeights;
         
-        private float[] _monoSampleBuffer = new float[FFTSize]; // RMS Test buffer
+        private float[] _monoSampleBuffer = new float[FFTSize];
 
         private int _targetNumberOfBars = -1;
 
@@ -37,9 +39,10 @@ namespace BeAnal.Wpf
         private readonly Stopwatch _frameTimer = new Stopwatch();
 
 
-        public AudioProcessor(Settings settings)
+        public AudioProcessor(Settings settings, IAudioCaptureService captureService)
         {
             _settings = settings;
+            _captureService = captureService;
 
             // Initialize all arrays correctly from the start
             _barToBinMap = new (int, int)[settings.NumberOfBars];
@@ -47,67 +50,62 @@ namespace BeAnal.Wpf
             _peakLevels = new double[settings.NumberOfBars];
             _peakHoldTimers = new double[settings.NumberOfBars];
 
-            
+
             _settings.PropertyChanged += OnSettingsChanged;
+            _captureService.SamplesAvailable += OnDataAvailable;
         }
 
+        // Tell the capture service to start
         public void Start()
         {
-            _capture = new WasapiLoopbackCapture();
-            _capture.DataAvailable += OnDataAvailable;
-            _capture.StartRecording();
+            // Tell the capture service to start, using the saved Device ID
+            _captureService.StartCapture(_settings.SelectedAudioDeviceId);
             _frameTimer.Start();
         }
 
+        // This listens for settings changes from the user, and updates releated audio procesing stuffs
         private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
         {
-            // If a property that affects a bar layout changes, set the flag!
             if (e.PropertyName == nameof(Settings.NumberOfBars))
             {
+                // A new bar count has been requested.
+                // We just save the target, ProcessFFTData will handle the change.
                 //Atomic write, its thread-safe <--- Battling race conditions between threads, are we???
                 _targetNumberOfBars = _settings.NumberOfBars;
+            }
+            
+            if (e.PropertyName == nameof(Settings.SelectedAudioDeviceId))
+            {
+                Debug.WriteLine($"Audio device setting changed. Telling service to restart");
+                _captureService.StartCapture(_settings.SelectedAudioDeviceId);
             }
         }
 
 
-        // This is our audio processing method
-        //    .... where the rubber meets the road
-        private void OnDataAvailable(object? sender, WaveInEventArgs e)
+        // This is the entry point for audio data, recieving from the abstracted interface services
+        private void OnDataAvailable(float[] monoSamples)
         {
-            //The incoming buffer is raw bytes, we need to convert it to samples
-            var buffer = new WaveBuffer(e.Buffer);
-
             //Process samples in pairs (since its stereo, 32-bit float)
-            for (int i = 0; i < e.BytesRecorded / 4; i += 2)
+            for (int i = 0; i < monoSamples.Length; i++)
             {
                 if (_FFTBufferIndex >= FFTSize) break;
 
-                //average the left and right channels to get a mono sample
-                float leftSample = buffer.FloatBuffer[i];
-                float rightSample = (i + 1 < buffer.FloatBuffer.Length) ? buffer.FloatBuffer[i + 1] : leftSample;
-                float monoSample = (leftSample + rightSample) / 2.0f;
-
-                //Store the raw mono sample for the RMS testing below
-                _monoSampleBuffer[_FFTBufferIndex] = monoSample;
-
-                //Now, use the mono sample to fill our FFT buffer
-                _FFTBuffer[_FFTBufferIndex].X = (float)(monoSample * FastFourierTransform.HannWindow(_FFTBufferIndex, FFTSize));
+                // Fill our FFT buffer
+                _FFTBuffer[_FFTBufferIndex].X = (float)(monoSamples[i] * FastFourierTransform.HannWindow(_FFTBufferIndex, FFTSize));
                 _FFTBuffer[_FFTBufferIndex].Y = 0;
                 _FFTBufferIndex++;
             }
+            
             //When the FFT Buffre is full, we process it
             if (_FFTBufferIndex >= FFTSize)
             {
-
-                // --- DIAGNOSTIC --- RMS validation
-                double rmsValue = CalculateRMS(_monoSampleBuffer);
-                
                 _FFTBufferIndex = 0; // Reset for the next batch  
                 FastFourierTransform.FFT(true, (int)Math.Log(FFTSize, 2.0), _FFTBuffer);
                 ProcessFFTData();
             }
         }
 
+        // Runs the FFT and processes the datda into visualizer bars.
         private void ProcessFFTData()
         {
             // -- Freeze the timer, grab the time, measure time since last frame --
@@ -119,16 +117,16 @@ namespace BeAnal.Wpf
             int currentTarget = _targetNumberOfBars;
 
             // If this is the first run, currentTarget is -1
-            if (currentTarget == -1)
+            if (currentTarget <= 0)
             {
                 //set the target to the default size (ie, 64)
-                currentTarget = _barToBinMap.Length;
+                currentTarget = _barToBinMap.Length > 0 ? _barToBinMap.Length : 64;
                 //Sync the target so this block doesn't run again
                 _targetNumberOfBars = currentTarget;
                 //Force the initial map build
                 UpdateBarToBinMapping(currentTarget);
             }
-            else if (currentTarget != _barToBinMap.Length && currentTarget > 0)
+            else if (currentTarget != _barToBinMap.Length)
             {
                 //Rebuild the map to the user's new target size
                 UpdateBarToBinMapping(currentTarget);
@@ -142,14 +140,15 @@ namespace BeAnal.Wpf
 
                 // 2. Apply the amplitdue correction for the Hann Window
                 double correctedMagnitude = rawMagnitude * 2.0;
-                
+
                 // 3. Pass the corercted mangtidue for dB conversion
                 FFTMagnitudes[i] = ConvertToDB(correctedMagnitude);
             }
 
+            // Use the thread-safe array length
             double[] finalBarHeights = new double[_barToBinMap.Length];
 
-            
+
             // -- Calculate smoothing factors based on elapsed time
             // Avoid division by zero if the settings is 0 (by mistake)
             double attackFactor = (_settings.BarAttackTimeMs > 0) ? deltaTime / (_settings.BarAttackTimeMs / 1000.0) : 1.0;
@@ -192,7 +191,7 @@ namespace BeAnal.Wpf
             // Peak Detection Logic Block
             double peakReleaseFactor = (_settings.PeakReleaseTimeMs > 0) ? deltaTime / (_settings.PeakReleaseTimeMs / 1000.0) : 1.0;
             peakReleaseFactor = Math.Min(1.0, peakReleaseFactor);
-            
+
             for (int i = 0; i < finalBarHeights.Length; i++)
             {
                 double currentBarHeight = finalBarHeights[i];
@@ -220,6 +219,7 @@ namespace BeAnal.Wpf
             ProcessedDataAvailable?.Invoke(new VisualizerData(finalBarHeights, _peakLevels));
         }
 
+        // Rebuilds the mapping of visual bars to FFT frequency bins
         private void UpdateBarToBinMapping(int newNumberOfBars)
         {
             int oldNumberOfBars = _barToBinMap.Length;
@@ -249,32 +249,40 @@ namespace BeAnal.Wpf
             int linearBarCount = (int)(newNumberOfBars * linearRatio);
             int lastLinearBin = 0;
 
+
+            // For the linear section, we directly map FFT bins to bars
             for (int i = 0; i < linearBarCount; i++)
             {
                 _barToBinMap[i] = (i + 1, i + 2);
                 lastLinearBin = i + 2;
             }
 
+            // The Log section determins the remaining number of bars we want to map, 
+            // does some slick math to determine the bin seperation (freq start/end), 
+            // 
             if (newNumberOfBars > linearBarCount)
             {
                 int logBarCount = newNumberOfBars - linearBarCount;
                 double minLogFreq = lastLinearBin * frequencyResolution;
                 double maxLogFreq = 20000; // We are setting the max frequency. only dogs are hearing up there, anyway.
 
-                // establish a clean handoff between linear and log
-                int lastBin = lastLinearBin;
-
                 for (int i = 0; i < logBarCount; i++)
                 {
                     double freqStart = minLogFreq * Math.Pow(maxLogFreq / minLogFreq, (double)(i) / logBarCount);
                     double freqEnd = minLogFreq * Math.Pow(maxLogFreq / minLogFreq, (double)(i + 1) / logBarCount);
 
+                    // Clamp the indexes to valid ranges
                     int binStartIndex = (int)(freqStart / frequencyResolution);
                     int binEndIndex = (int)(freqEnd / frequencyResolution);
+
+                    ///////////////////////
+                    // Error prone section
+                    ///////////////////////
                     if (binStartIndex > maxFFTIndex) binStartIndex = maxFFTIndex;
                     if (binEndIndex > maxFFTIndex) binEndIndex = maxFFTIndex;
                     if (binEndIndex <= binStartIndex) binEndIndex = binStartIndex + 1;
                     if (binEndIndex > maxFFTIndex) binEndIndex = maxFFTIndex;
+
                     _barToBinMap[i + linearBarCount] = (binStartIndex, binEndIndex);
                 }
             }
@@ -320,39 +328,15 @@ namespace BeAnal.Wpf
         // this ensures our audio device is released properly
         public void Dispose()
         {
-            // 1. Stop the Recording
-            _capture?.StopRecording();
-
-            // 2. Important: Unsubscribe from the event to prevent a race condition
-            if (_capture != null) _capture.DataAvailable -= OnDataAvailable;
-
-            // 3. Now its safe to dispose the object.
-            _capture?.Dispose();
-
-            _capture = null;
+            // Unsubscribe from the service's event
+            if (_captureService != null)
+            {
+                _captureService.SamplesAvailable -= OnDataAvailable;
+            }
+            // Note: We do *not* dispose the _captureService here.
+            // MainWindow is responsible for that, as it created it.
         }
 
-        public double CalculateRMS(float[] samples)
-        {
-            if (samples == null || samples.Length == 0)
-            {
-                return 0.0;
-            }
-
-            // 1. Sum the square of the samples
-            // Using the dobule for the sum to prevent potential overflow an precision losses
-            double sumOfSquares = 0.0;
-            for (int i = 0; i < samples.Length; i++)
-            {
-                sumOfSquares += samples[i] * samples[i];
-            }
-
-            // 2. Calculate the mean of the squares
-            double meanSquare = sumOfSquares / samples.Length;
-
-            // 3. Return the square root of the mean
-            return Math.Sqrt(meanSquare);
-        }
-        
+       
     }
 }

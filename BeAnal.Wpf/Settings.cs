@@ -32,6 +32,9 @@ namespace BeAnal.Wpf
         private double _windowLeft = 100;
         private WindowState _windowState = WindowState.Normal;
 
+        // Audio interface Information
+        private string? _selectedAudioDeviceId = null;
+
         public int NumberOfBars
         {
             get => _numberOfBars;
@@ -133,6 +136,13 @@ namespace BeAnal.Wpf
         {
             get => _windowState;
             set { if (_windowState != value) { _windowState = value; OnPropertyChanged(); } }
+        }
+
+        // Audio Interface
+        public string? SelectedAudioDeviceId
+        {
+            get => _selectedAudioDeviceId;
+            set { if (_selectedAudioDeviceId != value) { _selectedAudioDeviceId = value;  OnPropertyChanged(); }}
         }
 
         public event PropertyChangedEventHandler? PropertyChanged;

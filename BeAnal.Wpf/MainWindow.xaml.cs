@@ -4,9 +4,7 @@ using System.Windows.Shapes;    //Required for Rectangle
 using System.Windows.Media;     // Required for Brushes
 using System.Windows.Controls;
 using System.ComponentModel;
-using Accessibility;
-using NAudio.Wave;
-using System.Windows.Automation.Peers;
+using System.Diagnostics;
 
 
 namespace BeAnal.Wpf
@@ -16,18 +14,28 @@ namespace BeAnal.Wpf
 
         // --  Fields --
         private readonly Settings _settings;
-        private readonly AudioProcessor _audioProcessor;
+
+        // Audio Interfaces
+        private readonly IAudioCaptureService _captureService;  //hardware specific service
+        private readonly AudioProcessor _audioProcessor;        //platform agnostic FFT processor
+
         private Rectangle[] _barRectangles;
         private Rectangle[] _peakRectangles;
         private readonly object _visualizerLock = new object();
+
+        private SettingsWindow? _settingsWindowInstance;
         
         public MainWindow()
         {
             InitializeComponent();
 
             _settings = SettingsService.LoadSettings();
+
+            // Create the platform specific service
+            _captureService = new WindowsAudioCapture();
+
             // Create and prepare the audio engine
-            _audioProcessor = new AudioProcessor(_settings);
+            _audioProcessor = new AudioProcessor(_settings, _captureService);
             
             // Hook into events
             _settings.PropertyChanged += OnSettingsChanged;
@@ -48,9 +56,14 @@ namespace BeAnal.Wpf
         private void OnWindowLoaded(object sender, RoutedEventArgs e)
         {
             // Perform intial setup nce the window is fully loaded
-            UpdateVisualizerLayout();
+            lock (_visualizerLock)
+            {
+                UpdateVisualizerLayout();
+            }
+
             UpdateWindowSettings();
 
+            //Start the processor, (which tells the service to start)
             _audioProcessor.Start();
         }
 
@@ -69,8 +82,13 @@ namespace BeAnal.Wpf
             // Save current settings to file
             SettingsService.SaveSettings(_settings);
 
-            // Cleaning shut down the audio engine
+            // Cleaning shut down the audio processor
             _audioProcessor.Dispose();
+            // Shut down the audio service
+            _captureService.Dispose();
+
+            // Close the setting window if its open
+            _settingsWindowInstance?.Close();
         }
 
         private void OnSettingsChanged(object? sender, PropertyChangedEventArgs e)
@@ -86,6 +104,7 @@ namespace BeAnal.Wpf
                     case nameof(Settings.LowColor):
                     case nameof(Settings.HighColor):
                     case nameof(Settings.PeakColor):
+                    case nameof(Settings.BarOpacity):
                         // This is an expensive operation, so only do it when you need to!
                         lock (_visualizerLock)
                         {
@@ -97,17 +116,6 @@ namespace BeAnal.Wpf
                         break;
                     case nameof(Settings.BackgroundOpacity):
                         CanvasBackgroundBrush.Opacity = _settings.BackgroundOpacity;
-                        break;
-                    case nameof(Settings.BarOpacity):
-                        lock (_visualizerLock)
-                        {
-                            //update all  existing bars with the new opacity
-                            for (int i = 0; i < _barRectangles.Length; i++)
-                            {
-                                _barRectangles[i].Opacity = _settings.BarOpacity;
-                                _peakRectangles[i].Opacity = _settings.BarOpacity;
-                            }
-                        }
                         break;
                 }
             });
@@ -273,10 +281,21 @@ namespace BeAnal.Wpf
 
         private void Settings_Click(object sender, RoutedEventArgs e)
         {
-            var settingsWindow = new SettingsWindow(_settings);
+
+            //If someone attempts to open settings when settings are already open, 
+            // simply bring settings to the font
+            if (_settingsWindowInstance != null)
+            {
+                _settingsWindowInstance.Activate();
+            }
+
+            //Pass both the seetings and the capture service to the window
+            _settingsWindowInstance = new SettingsWindow(_settings, _captureService);
+            _settingsWindowInstance.Owner = this;
+
+            _settingsWindowInstance.Closed += (s, args) => _settingsWindowInstance = null;
             
-            settingsWindow.Owner = this;
-            settingsWindow.ShowDialog();
+            _settingsWindowInstance.Show();
 
         }
         private void Exit_Click(object sender, RoutedEventArgs e)

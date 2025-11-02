@@ -4,6 +4,8 @@ using System.Linq;
 using System.Windows;
 using System.Windows.Controls;
 using System.Windows.Media;
+using System.Drawing.Text;
+using System.Windows.Automation.Peers;
 
 namespace BeAnal.Wpf
 {
@@ -14,18 +16,23 @@ namespace BeAnal.Wpf
     {
 
         private readonly Settings _settings;
+        private readonly IAudioCaptureService _captureService;
+
         private readonly List<ColorScheme> _colorSchemes;
-        
-        public SettingsWindow(Settings settings)
+
+        public SettingsWindow(Settings settings, IAudioCaptureService captureService)
         {
             InitializeComponent();
 
             _settings = settings;
+            _captureService = captureService;  // Start the service
             _settings.PropertyChanged += OnSettingsPropertyChanged;
 
             // This one line connects your settings directly to the UI.
             // All sliders and color pickers will now update the settings object automatically.
             DataContext = settings;
+
+            this.Loaded += SettingsWindow_Loaded;
 
             // -- Populate Color Schemes -- 
             _colorSchemes = new List<ColorScheme>
@@ -56,6 +63,40 @@ namespace BeAnal.Wpf
             ColorSchemeComboBox.ItemsSource = _colorSchemes;
             ColorSchemeComboBox.SelectedIndex = 0;
         }
+
+
+        // Populate the Audio Device ComboBox when the window is loaded
+        private void SettingsWindow_Loaded(object sender, RoutedEventArgs e)
+        {
+            // 1. Get the list of devices from the capture service
+            var devices = _captureService.EnumerateAudioDevices();
+
+            // 2. Add the "Follow Default" option to the top
+            var deviceList = new List<AudioDevice>
+            {
+                new AudioDevice (null, "Follow System Default")
+            };
+            deviceList.AddRange(devices);
+
+            // 3. Set the ComboBox's source
+            AudioDeviceComboBox.ItemsSource = deviceList;
+
+            // 4. Set the currently selected item
+            var selectedDevice = deviceList.FirstOrDefault(d => d.Id == _settings.SelectedAudioDeviceId);
+            AudioDeviceComboBox.SelectedItem = selectedDevice ?? deviceList[0];
+        }
+
+        // Saves the user's audio device selection to settings
+        private void AudioDeviceComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
+        {
+            if (AudioDeviceComboBox.SelectedItem is AudioDevice selectedDevice)
+            {
+                // save the ID (which will be "null" for the "Follow Default" option)
+                _settings.SelectedAudioDeviceId = selectedDevice.Id;
+            }
+        }
+
+
 
         private void ColorSchemeComboBox_SelectionChanged(object sender, SelectionChangedEventArgs e)
         {
